@@ -4,18 +4,16 @@ import cvxopt
 import time
 import matplotlib
 import sys
-import sympy
-# http://www.ai.soc.i.kyoto-u.ac.jp/~matsubara/le4-2016/index.php?%28Step1%29%20SVM%E3%81%AE%E4%BD%9C%E6%88%90
+from docopt import docopt
 
 kernels = {
-    "dot": lambda: lambda x, y: x.dot(y),
+    "linear": lambda: lambda x, y: x.dot(y),
     "polynomial": lambda d=2: lambda x, y: (1 + x.dot(y)) ** d,
     "sigmoid": lambda a=3, b=4: lambda x, y: np.tanh(a * x.dot(y) + b),
     "gauss": lambda sigma=10:
         (lambda x, y: np.exp(-0.5 * np.square(np.linalg.norm(x - y) / sigma))),
 }
 
-# レポート作成
 
 """
 def plot3D():#a,y,x):
@@ -74,21 +72,20 @@ def plot_core(x1s, x2s, cs, ss, markers, labels):
                     marker=markers[i], label=labels[i])
     plt.grid(True)
     plt.legend(loc='upper left')
-    plt.show()
     plt.savefig("plotdata.png")
-
-
-def separate(xs, ys):
-    n = len(ys)
-    assert(len(xs) == n)
-    x1p = [xs[i][0] for i in range(n) if ys[i] > 0]
-    x2p = [xs[i][1] for i in range(n) if ys[i] > 0]
-    x1m = [xs[i][0] for i in range(n) if ys[i] < 0]
-    x2m = [xs[i][1] for i in range(n) if ys[i] < 0]
-    return x1p, x2p, x1m, x2m
+    plt.show()
 
 
 def plot_f(f, x, y, num=100):
+    def separate(xs, ys):
+        n = len(ys)
+        assert(len(xs) == n)
+        x1p = [xs[i][0] for i in range(n) if ys[i] > 0]
+        x2p = [xs[i][1] for i in range(n) if ys[i] > 0]
+        x1m = [xs[i][0] for i in range(n) if ys[i] < 0]
+        x2m = [xs[i][1] for i in range(n) if ys[i] < 0]
+        return x1p, x2p, x1m, x2m
+
     x1 = np.linspace(min([_[0] for _ in x]), max([_[0] for _ in x]), num)
     x2 = np.linspace(min([_[1] for _ in x]), max([_[1] for _ in x]), num)
     x1mesh, x2mesh = np.meshgrid(x1, x2)
@@ -96,11 +93,11 @@ def plot_f(f, x, y, num=100):
     ygs = [f(x) for x in xgs]
     x1p, x2p, x1m, x2m = separate(x, y)
     x1pg, x2pg, x1mg, x2mg = separate(xgs, ygs)
-    x1s = [x1p, x1m, x1pg, x1mg]
-    x2s = [x2p, x2m, x2pg, x2mg]
+    x1s = [x1pg, x1mg, x1p, x1m]
+    x2s = [x2pg, x2mg, x2p, x2m]
     cs = ["red", "blue", "red", "blue"]
-    ss = [30, 30, 10, 10]
-    markers = ["o", "o", "x", "x"]
+    ss = [10, 10, 30, 30]
+    markers = ["x", "x", "o", "o"]
     labels = ["+1", "-1", "+1", "-1"]
     plot_core(x1s, x2s, cs, ss, markers, labels)
 
@@ -118,7 +115,7 @@ if __name__ == "__main__":
     if "-h" in sys.argv or "--help" in sys.argv:
         print("#### support vector machine ####")
         print("python3 svm.py <filename> <method> --plot")
-        print("method : gauss(default), polynomial, sigmoid, dot")
+        print("method : gauss(default), polynomial, sigmoid, linear")
         print("--plot : show plot graph (with matplotlib)")
         exit(0)
     shold_plot = "--plot" in sys.argv
@@ -132,7 +129,7 @@ if __name__ == "__main__":
     else:
         method = args[1]
         if method not in kernels:
-            print("method must be gauss, polynomial, sigmoid, or dot")
+            print("method must be gauss, polynomial, sigmoid, or linear")
             exit(1)
     x, y = load_x_y(filename)
     f = solve(x, y, kernels[method]())

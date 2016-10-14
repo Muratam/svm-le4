@@ -1,0 +1,72 @@
+\documentclass[]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage[deluxe]{otf}
+\renewcommand{\kanjifamilydefault}{\mgdefault}
+\newcommand*{\graphc}[3][7.0cm]{\begin{figure}[h] \begin{center}\includegraphics[clip,width= #1]{#2}\caption{#3}\end{center}\end{figure}}
+% http://www.ai.soc.i.kyoto-u.ac.jp/~matsubara/le4-2016/index.php?%28Step1%29%20SVM%E3%81%AE%E4%BD%9C%E6%88%90
+
+
+\begin{document}
+\title{平成28年度 3回生後期実験(エージェント) \\ 課題1 SVMの作成 }
+\author{村田 叡}
+\date{ 2016/10/14 }
+\maketitle
+
+\section{プログラム概要}
+この課題ではサポートベクターマシン(SVM)のpython3による実装を行った。
+1 と -1 の2クラスのサンプル点集合を分類する評価機を生成する。
+線形評価関数又はカーネルトリックを用いた評価関数を生成する。
+外部ライブラリとして凡庸行列計算に numpy,プロッティングに matplotlib,
+二次計画問題の計算に cvxopt を用いた。
+以下にその詳細を述べる。
+
+
+
+\section{外部仕様}
+\subsection{svm.py}
+今回のコードは svm.py にて実装した。
+このコードは、引数としてサンプル点集合のファイル名、カーネル名、及びオプションをとる。
+サンプル点集合の形式については、実験のページに書かれてあるものに従った。
+カーネル名は、gauss, polynomial, sigmoid, linear のいずれかをとる。
+デフォルトのカーネル名は gauss である。
+--plot オプションを使うと結果をmatplotlibでプロットしたものを表示する。
+\subsection{実行例と実行結果}
+\begin{verbatim}
+# 必要なライブラリの導入
+$pip3 install -r requirements.txt
+# サンプル点集合 sample_circle.dat のガウスカーネルのSVMを作成し、プロッティングする。
+$python3 svm.py sample_data/sample_circle.dat gauss --plot
+>> α : [  0.00000000e+00   0.00000000e+00   0.00000000e+00   0.00000000e+00 ...
+>> θ : 3.56258579268
+>> passed :100 / 100
+>> f(x) =  +14.8961965139*K([31.0, 12.0],x) -6.46323001951*K([40.0, 24.0],x) ...
+\end{verbatim}
+上記のように、各αの値、θの値、サンプル点による識別器の識別率、識別器の関数が結果として得られる。
+なお、f(x) の K は 各カーネルを指す。
+\graphc[16cm]{./images/circleplot.png}{ガウスカーネルのSVM}
+
+
+\section{内部仕様}
+以下ではsvm.pyでの大域変数と各関数について説明する。
+
+
+\section{考察}
+% 機能の実装が目的であれば，それが実現できていることを示します．
+% 性能評価であれば，単に一例を示してうまく動作したなどとまとめるのではなく，
+% データ数などの条件を変えるなど，多面的に評価します．
+
+\section{感想}
+% 評価結果からどのような傾向が読み取れるかを記述．どういう問題点があって，どう解決したかなど．
+
+\end{document}
+
+%提出物：ソースコード，プログラム仕様，評価結果
+%ソースコードは，ライブラリ，識別器作成に用いる訓練データセット，Makefile等の設定などを含めること．
+%Makefileを作ってコンパイルをできるようにすること．
+%ソースコード，プログラム仕様，評価結果を1つのディレクトリにまとめてzipあるいは.tar.gz形式にすること．
+%提出先：松原(matsubara at i.kyoto-u.ac.jp)，山本(s-yamamoto at ai.soc.i.kyoto-u.ac.jp)
+%課題の提出は一つのメールで教員とTAに同報してください．別メールで送られると，教員TA間での無駄な確認作業が増えます．
+%メールのSubjectは，ex4 課題番号 名前（例えば，ex4-1-matsubara）とすること．
+%メール本文で自身の名前を名乗ること．本文が何もないと迷惑メールに分類されることがあります．
+%△△先生，TA▽▽さん，□□さん，○○です．        　
+%課題1を提出します．よろしくお願いします．
