@@ -4,6 +4,7 @@ import cvxopt
 import time
 import matplotlib
 import sys
+from mpl_toolkits.mplot3d import Axes3D
 
 
 kernels = {
@@ -13,18 +14,6 @@ kernels = {
     "gauss": lambda sigma=10:
         (lambda x, y: np.exp(-0.5 * np.square(np.linalg.norm(x - y) / sigma))),
 }
-
-
-"""
-def plot3D():#a,y,x):
-    from scipy.stats import multivariate_normal
-    from mpl_toolkits.mplot3d import Axes3D
-    X, Y = np.mgrid[-100:100:2, -100:100:2]
-    Z = X + Y
-    Axes3D(plt.figure()).plot_wireframe(X, Y, Z)
-    plt.show()
-plot3D()
-"""
 
 
 def solve(x, y, kernel):
@@ -64,7 +53,7 @@ def solve(x, y, kernel):
     return f
 
 
-def plot_f(f, x, y, num=100):
+def plot_f(f, x, y, three_d_vision=False, num=50):
     def separate(xs, ys):
         n = len(ys)
         assert len(xs) == n
@@ -76,9 +65,12 @@ def plot_f(f, x, y, num=100):
 
     x1 = np.linspace(min([_[0] for _ in x]), max([_[0] for _ in x]), num)
     x2 = np.linspace(min([_[1] for _ in x]), max([_[1] for _ in x]), num)
-    x1mesh, x2mesh = np.meshgrid(x1, x2)
+    x1mesh, x2mesh = np.meshgrid(x1, x2)  # x1ij x2ij
     xgs = np.c_[x1mesh.ravel(), x2mesh.ravel()]
     ygs = [f(x) for x in xgs]
+    if three_d_vision:
+        Axes3D(plt.figure()).scatter3D(x1mesh.ravel(), x2mesh.ravel(), ygs)
+        return plt.show()
     x1p, x2p, x1m, x2m = separate(x, y)
     x1pg, x2pg, x1mg, x2mg = separate(xgs, ygs)
     x1s = [x1pg, x1mg, x1p, x1m]
