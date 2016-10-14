@@ -4,7 +4,7 @@ import cvxopt
 import time
 import matplotlib
 import sys
-from docopt import docopt
+
 
 kernels = {
     "linear": lambda: lambda x, y: x.dot(y),
@@ -111,27 +111,30 @@ def load_x_y(fileName):
             y.append(float(xk[-1]))
     return x, y
 
-if __name__ == "__main__":
-    if "-h" in sys.argv or "--help" in sys.argv:
-        print("#### support vector machine ####")
-        print("python3 svm.py <filename> <method> --plot")
-        print("method : gauss(default), polynomial, sigmoid, linear")
-        print("--plot : show plot graph (with matplotlib)")
-        exit(0)
-    shold_plot = "--plot" in sys.argv
-    args = [x for x in sys.argv[1:] if x != "--plot"]
-    if len(args) == 0:
-        print("please input filename !!")
-        exit(1)
-    filename = args[0]
-    if len(args) == 1:
-        method = "gauss"
+
+def parse_argv():
+    __doc__ = """{f}
+Usage:
+    {f} <filename> [-m |--method <method>] [--plot]
+    {f} [-h | --help]
+Options:
+    -m --method              gauss(default), polynomial, sigmoid, linear
+    --plot                   show plotted graph (with matplotlib)
+    -h --help                Show this help.
+""".format(f=__file__)
+    from docopt import docopt
+    args = docopt(__doc__)
+    if not args["<method>"]:
+        args["<method>"] = "gauss"
     else:
-        method = args[1]
-        if method not in kernels:
+        if args["<method>"] not in kernels:
             print("method must be gauss, polynomial, sigmoid, or linear")
             exit(1)
-    x, y = load_x_y(filename)
-    f = solve(x, y, kernels[method]())
-    if shold_plot:
+    return args
+
+if __name__ == "__main__":
+    args = parse_argv()
+    x, y = load_x_y(args["<filename>"])
+    f = solve(x, y, kernels[args["<method>"]]())
+    if args["--plot"]:
         plot_f(f, x, y)
