@@ -3,9 +3,10 @@ import matplotlib.pyplot as plt
 import cvxopt
 import time
 import matplotlib
+import random
 import sys
 from mpl_toolkits.mplot3d import Axes3D
-
+from matplotlib import animation
 
 kernels = {
     "linear": lambda: lambda x, y: x.dot(y),
@@ -53,7 +54,26 @@ def solve(x, y, kernel):
     return f
 
 
-def plot_f(f, x, y, three_d_vision=False, num=50):
+def plot_3D(f, x, num, plot_type3D="scatter"):
+    # x is used for this range
+    x1 = np.linspace(min([_[0] for _ in x]), max([_[0] for _ in x]), num)
+    x2 = np.linspace(min([_[1] for _ in x]), max([_[1] for _ in x]), num)
+    x1mesh, x2mesh = np.meshgrid(x1, x2)
+    Z = x1mesh.copy()
+    for i in range(num):
+        for j in range(num):
+            Z[i, j] = f([x1mesh[i, j], x2mesh[i, j]])
+    if plot_type3D == "contourf":
+        Axes3D(plt.figure()).contourf3D(x1mesh, x2mesh, Z)
+    elif plot_type3D == "contour":
+        Axes3D(plt.figure()).contourf3D(x1mesh, x2mesh, Z)
+    else:
+        Axes3D(plt.figure()).scatter3D(x1mesh.ravel(), x2mesh.ravel(),
+                                       [f(x) for x in np.c_[x1mesh.ravel(), x2mesh.ravel()]])
+    return plt.show()
+
+
+def plot_f(f, x, y, num=50, plot_type3D="scatter"):
     def separate(xs, ys):
         n = len(ys)
         assert len(xs) == n
@@ -62,15 +82,13 @@ def plot_f(f, x, y, three_d_vision=False, num=50):
         x1m = [xs[i][0] for i in range(n) if ys[i] < 0]
         x2m = [xs[i][1] for i in range(n) if ys[i] < 0]
         return x1p, x2p, x1m, x2m
-
+    if plot_type3D:
+        return plot_3D(f, x, num, plot_type3D)
     x1 = np.linspace(min([_[0] for _ in x]), max([_[0] for _ in x]), num)
     x2 = np.linspace(min([_[1] for _ in x]), max([_[1] for _ in x]), num)
     x1mesh, x2mesh = np.meshgrid(x1, x2)  # x1ij x2ij
     xgs = np.c_[x1mesh.ravel(), x2mesh.ravel()]
     ygs = [f(x) for x in xgs]
-    if three_d_vision:
-        Axes3D(plt.figure()).scatter3D(x1mesh.ravel(), x2mesh.ravel(), ygs)
-        return plt.show()
     x1p, x2p, x1m, x2m = separate(x, y)
     x1pg, x2pg, x1mg, x2mg = separate(xgs, ygs)
     x1s = [x1pg, x1mg, x1p, x1m]
@@ -84,8 +102,6 @@ def plot_f(f, x, y, three_d_vision=False, num=50):
                     marker=markers[i], label=labels[i])
     plt.grid(True)
     plt.legend(loc='upper left')
-    plt.savefig("plotdata.png")
-    plt.show()
 
 
 def load_x_y(fileName):
@@ -108,9 +124,9 @@ Usage:
     {f} <filename> [-m | --method <method>] [--plot]
     {f} [-h | --help]
 Options:
-    -m --method              {methods} (default:gauss)
-    --plot                   show plotted graph (with matplotlib)
-    -h --help                Show this help.
+    -m --method    {methods} (default:gauss)
+    --plot         show plotted graph (with matplotlib)
+    -h --help      show this help.
 """.format(f=__file__, methods=str(",".join(kernels.keys())))
     from docopt import docopt
     args = docopt(__doc__)
@@ -122,9 +138,31 @@ Options:
             exit(1)
     return args
 
+# def cross_validation():
+
+
 if __name__ == "__main__":
     args = parse_argv()
     x, y = load_x_y(args["<filename>"])
     f = solve(x, y, kernels[args["<method>"]]())
     if args["--plot"]:
-        plot_f(f, x, y)
+        """
+        def plot(index):
+            plt.cla()
+            if index < 1:
+                return
+            n = len(y)
+            xi, yi = [], []
+            for i in random.sample(range(n), min(index, n)):
+                xi.append(x[i])
+                yi.append(y[i])
+            plot_f(f, xi, yi, plot_type3D="")
+            print(index)
+        ani = animation.FuncAnimation(plt.figure(), plot, interval=1000)
+        # ani.save("output.gif", writer="imagemagick")
+        plt.show()
+        """
+
+        plot_f(f, x, y, plot_type3D="")
+        plt.show()
+        plt.savefig("plotdata.png")
