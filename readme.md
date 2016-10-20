@@ -1,5 +1,7 @@
 # requirements
 ```sh
+$ python3 --version
+# >> 3.5.2
 $ pip3 install -r reqirements.txt
 ```
 
