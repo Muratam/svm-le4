@@ -8,18 +8,13 @@ from pprint import pprint
 import multiprocessing
 import functools
 
-# todo 生 cross_validation呼び出し
-# todo 三次元プロット
-# todo データ作成
-# マルチスレッド高速化
-
 
 def solve(x, y, kernel, show=True):
     n = len(y)
     P = cvxopt.matrix([[0.0] * n] * n)
     for k in range(n):
         for l in range(n):
-            P[k, l] = y[k] * y[l] * kernel(x[k], x[l]) if k >= l else P[l, k]
+            P[k, l] = y[k] * y[l] * kernel(x[k], x[l]) if k <= l else P[l, k]
     q = cvxopt.matrix([-1.0] * n)
     G = cvxopt.spdiag([-1.0] * n)
     h = cvxopt.matrix([0.0] * n)
@@ -28,6 +23,7 @@ def solve(x, y, kernel, show=True):
     b = cvxopt.matrix(0.0)
     sol = cvxopt.solvers.qp(P, q, G, h, A, b, options={"show_progress": False})
     a = np.array([(x if x > 0.0000001 else 0) for x in sol["x"]])
+    # print("P:{}q:{}G:{}h:{}A:{}b:{}".format(P, q, G, h, A, b))
     ok_indexes = [i for i in range(n) if abs(a[i]) > 0]
     ok_coes = [(a[i] * y[i], x[i]) for i in ok_indexes]
     kernel_dot_to_w = lambda n_x: sum(
@@ -36,6 +32,7 @@ def solve(x, y, kernel, show=True):
     theta = kernel_dot_to_w(x[max_index]) - y[max_index]
     f = lambda n_x: 1.0 if kernel_dot_to_w(n_x) - theta > 0 else -1.0
     if len(ok_indexes) == len(y):
+        print("All of Samples are Support Vector...")
         return lambda n_x: -1
     if show:
         print("support_vectors : {}".format(len(ok_indexes)))
@@ -228,7 +225,6 @@ if __name__ == "__main__":
     param_ranges, kernel = kernels[args["<method>"]]
     x, y = load_npx_npy(args["<filename>"])
     x = (x - x.min(0)) / (x.max(0) - x.min(0))  # normalize
-    #c = cross_validation(x, y, kernel([2 ** -4.6]), 10)
     if args["--cross"]:
         div = int(args["<divide_num>"]) if args["<divide_num>"] else 10
         p, found = search_parameter(
@@ -239,7 +235,7 @@ if __name__ == "__main__":
             print(args["<param>"])
             f = solve(x, y, kernel([float(args["<param>"])]))
         else:
-            f = solve(x, y, kernel())
+            f = solve(x, y, kernel(), True)
         if args["--plot"]:  # plot は二次元データのみ
             plot_f(f, x, y, plot_type3d="")
             plt.savefig("image/plotdata.png")
