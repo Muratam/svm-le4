@@ -8,26 +8,6 @@ from pprint import pprint
 import multiprocessing
 import functools
 
-kernels = {
-    "linear": lambda: lambda x, y: x.dot(y),
-    "polynomial": lambda d=2: lambda x, y: (1 + x.dot(y)) ** d,
-    "sigmoid": lambda a=(3, 4): lambda x, y: np.tanh(a[0] * x.dot(y) + a[1]),
-    "gauss": lambda sigma=10: (lambda x, y: np.exp(-0.5 * np.square(np.linalg.norm(x - y) / sigma))),
-}
-# class Kernel:
-#    def __init__(self,params):
-
-
-__doc__ = """{f}
-Usage:
-    {f} <filename> [-m | --method <method>] [--plot] [--cross-validation] [-h | --help]
-    {f} (-h | --help)
-Options:
-    -m --method    {methods} (default:gauss)
-    --plot         show plotted graph (with matplotlib)
-    -h --help      show this help.
-""".format(f=__file__, methods=str(",".join(kernels.keys())))
-
 
 def solve(x, y, kernel, show=True):
     n = len(y)
@@ -50,9 +30,11 @@ def solve(x, y, kernel, show=True):
     max_index = a.argmax()
     theta = kernel_dot_to_w(x[max_index]) - y[max_index]
     f = lambda n_x: 1.0 if kernel_dot_to_w(n_x) - theta > 0 else -1.0
+    if len(ok_indexes) == len(y):
+        return lambda n_x: -1
     if show:
         print("support_vectors : {}".format(len(ok_indexes)))
-        #print("α : " + str(a))
+        # print("α : " + str(a))
         # print("θ : " + str(theta))
         # f_str = "f(x) = "
         # for i in ok_indexes:
@@ -106,6 +88,7 @@ def plot_f(f, x, y, num=100, plot_type3d="scatter", lims=[[0, 1], [0, 1]]):
     ss = [10, 10, 30, 30]
     markers = ["x", "x", "o", "o"]
     labels = ["+1", "-1", "+1", "-1"]
+    plt.cla()
     for i in range(len(x1s)):
         plt.scatter(x1s[i], x2s[i], c=cs[i], s=ss[i],
                     marker=markers[i], label=labels[i])
@@ -130,18 +113,6 @@ def load_npx_npy(file_name):
     return np.array(x), np.array(y)
 
 
-def parse_argv():
-    from docopt import docopt
-    args = docopt(__doc__)
-    if not args["<method>"]:
-        args["<method>"] = "gauss"
-    else:
-        if args["<method>"] not in kernels:
-            print("input valid method name!! ")
-            exit(1)
-    return args
-
-
 def plot_animation(f, x, y):
     # WIP(EXPERIMENTIAL)
     def plot(index):
@@ -160,7 +131,7 @@ def plot_animation(f, x, y):
     plt.show()
 
 
-def cross_validation_find(x, y, kernel, div, params, plot=False):
+def cross_validation_find(x, y, kernel, div):
     n = len(y)
     assert n >= div
     passes = np.zeros(div)
@@ -169,44 +140,91 @@ def cross_validation_find(x, y, kernel, div, params, plot=False):
         train_ys = np.array([_ for (j, _) in enumerate(y) if j % div != i])
         test_xs = np.array([_ for (j, _) in enumerate(x) if j % div == i])
         test_ys = np.array([_ for (j, _) in enumerate(y) if j % div == i])
-        f = solve(train_xs, train_ys, kernel(params), False)
+        f = solve(train_xs, train_ys, kernel, False)
         passed = sum([1 for _ in range(len(test_xs))
                       if f(test_xs[_]) == test_ys[_]])
         passes[i] = passed
-    if plot:
-        plt.cla()
-        plot_f(f, x, y, plot_type3d="")
-        plt.savefig("image/plot-sigma-{}.png".format(sigma))
-    return passes.sum() / n
+    return passes.sum() / n, f
 
 
-def cross_validation(x, y, kernel, div=10):
-    # WIP / とりあえず Gauss のみ / sigma を探索
-    """
-    jobs = []
-    for i in range(18):
-        job = multiprocessing.Process(
-            target=cross_validation_find,
-            args=(x, y, kernel, div, 2 ** (i - 15)))
-        jobs.append(job)
-        job.start()
-    for job in jobs:
-        job.join()
-    print("job")
-    """
-    seeked = np.zeros(18)
-    for i in range(18):
-        seeked[i] = cross_validation_find(x, y, kernel, div, 2 ** (i - 15))
-        print(seeked[i])
-    print(seeked.argmax())
+def cross_validation(x, y, kernel, param_ranges, do_plot=False, div=10, eps=0.001):
+    dim = len(param_ranges)
+    assert (dim == 1)
+
+    def find_deep(i, offset, num=10):
+        # (2 ** (i - offset)) ~ (2 ** ( i + offset )) を探す
+        founds = []
+        for index in range(num + 1):
+            i_seek = i + offset * (- 1 + 2 * (index / num))
+            k = kernel([2 ** i_seek])
+            found, f = cross_validation_find(x, y, k, div)
+            founds.append([i_seek, found])
+            result_str = "2 ** {:.4f} | percent {}".format(i_seek, found)
+            print(result_str)
+            if do_plot:
+                imgName = "image/i_{:.4f}__percent_{:4f}.png".format(
+                    i_seek, found)
+                plot_f(f, x, y, plot_type3d="")
+                plt.title(result_str)
+                plt.savefig(imgName)
+        max_i, max_found = 0, 0
+        for i, found in founds:
+            if found > max_found:
+                max_i = i
+                max_found = found
+        return max_i, max_found
+
+    i, offset = param_ranges[0]
+    i, found = find_deep(i, offset)
+    while True:
+        offset /= 10
+        pro_i, pro_found = find_deep(i, offset)
+        if pro_found - found <= eps:
+            break
+        i, found = pro_i, pro_found
+    return 2 ** i, found
+
+# [i,offset]
+kernels = {
+    "linear": ([[]], lambda param=[]: lambda x, y: x.dot(y)),
+    "polynomial":  ([[2.5, 2]], lambda param=[2]: lambda x, y: (1 + x.dot(y)) ** param[0]),
+    "sigmoid": ([[-2, 2], [-2, 2]], lambda param=[3, 4]: lambda x, y: np.tanh(param[0] * x.dot(y) + param[1])),
+    "gauss": ([[-6, 7]], lambda param=[10.0]: (lambda x, y: np.exp(-0.5 * np.square(np.linalg.norm(x - y) / param[0])))),
+}
+
+
+__doc__ = """{f}
+Usage:
+    {f} <filename> [-m | --method <method>] [--plot] [--cross-validation] [-h | --help]
+    {f} (-h | --help)
+Options:
+    -m --method    {methods} (default:gauss)
+    --plot         show plotted graph (with matplotlib)
+    -h --help      show this help.
+""".format(f=__file__, methods=str(",".join(kernels.keys())))
+
+
+def parse_argv():
+    from docopt import docopt
+    args = docopt(__doc__)
+    if not args["<method>"]:
+        args["<method>"] = "gauss"
+    else:
+        if args["<method>"] not in kernels:
+            print("input valid method name!! ")
+            exit(1)
+    return args
+
 
 if __name__ == "__main__":
     args = parse_argv()
-    kernel = kernels[args["<method>"]]
+    param_ranges, kernel = kernels[args["<method>"]]
     x, y = load_npx_npy(args["<filename>"])
     x = (x - x.min(0)) / (x.max(0) - x.min(0))  # normalize
     if args["--cross-validation"]:
-        cross_validation(x, y, kernel)
+        p, found = cross_validation(x, y, kernel, param_ranges, args["--plot"])
+        print(p)
+        print(found)
     else:
         f = solve(x, y, kernel())
         if args["--plot"]:  # plot は二次元データのみ
