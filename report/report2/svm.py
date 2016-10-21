@@ -8,11 +8,6 @@ from pprint import pprint
 import multiprocessing
 import functools
 
-# todo 生 cross_validation呼び出し
-# todo 三次元プロット
-# todo データ作成
-# マルチスレッド高速化
-
 
 def solve(x, y, kernel, show=True):
     n = len(y)
