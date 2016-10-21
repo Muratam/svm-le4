@@ -147,7 +147,7 @@ def cross_validation_find(x, y, kernel, div):
     return passes.sum() / n, f
 
 
-def cross_validation(x, y, kernel, param_ranges, do_plot=False, div=10, eps=0.001):
+def cross_validation(x, y, kernel, param_ranges, div, do_plot=False, eps=0.001):
     dim = len(param_ranges)
     assert (dim == 1)
 
@@ -159,7 +159,7 @@ def cross_validation(x, y, kernel, param_ranges, do_plot=False, div=10, eps=0.00
             k = kernel([2 ** i_seek])
             found, f = cross_validation_find(x, y, k, div)
             founds.append([i_seek, found])
-            result_str = "2 ** {:.4f} | percent {}".format(i_seek, found)
+            result_str = "2 ** {:.4f} : {}%".format(i_seek, 100 * found)
             print(result_str)
             if do_plot:
                 imgName = "image/i_{:.4f}__percent_{:4f}.png".format(
@@ -195,12 +195,14 @@ kernels = {
 
 __doc__ = """{f}
 Usage:
-    {f} <filename> [-m | --method <method>] [--plot] [--cross-validation] [-h | --help]
+    {f} <filename> [-m | --method <method>] [--plot] [--cross-validation <divide_num>] [-h | --help] [-p | --param <param>]
     {f} (-h | --help)
 Options:
-    -m --method    {methods} (default:gauss)
-    --plot         show plotted graph (with matplotlib)
-    -h --help      show this help.
+    --cross-validation   do cross validation
+    -p --param           assign parameter (ex: gauss kernel sigma)
+    -m --method          {methods} (default:gauss)
+    --plot               show plotted graph (with matplotlib)
+    -h --help            show this help.
 """.format(f=__file__, methods=str(",".join(kernels.keys())))
 
 
@@ -222,11 +224,16 @@ if __name__ == "__main__":
     x, y = load_npx_npy(args["<filename>"])
     x = (x - x.min(0)) / (x.max(0) - x.min(0))  # normalize
     if args["--cross-validation"]:
-        p, found = cross_validation(x, y, kernel, param_ranges, args["--plot"])
-        print(p)
-        print(found)
+        div = int(args["<divide_num>"]) if args["<divide_num>"] else 10
+        p, found = cross_validation(
+            x, y, kernel, param_ranges, div, args["--plot"])
+        print("p : {} | {}%".format(p, found * 100))
     else:
-        f = solve(x, y, kernel())
+        if args["<param>"]:
+            print(args["<param>"])
+            f = solve(x, y, kernel([float(args["<param>"])]))
+        else:
+            f = solve(x, y, kernel())
         if args["--plot"]:  # plot は二次元データのみ
             plot_f(f, x, y, plot_type3d="")
             plt.savefig("image/plotdata.png")
