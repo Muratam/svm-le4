@@ -34,14 +34,14 @@ def solve(x, y, kernel, show=True):
         return lambda n_x: -1
     if show:
         print("support_vectors : {}".format(len(ok_indexes)))
-        # print("α : " + str(a))
-        # print("θ : " + str(theta))
-        # f_str = "f(x) = "
-        # for i in ok_indexes:
-        #    co = a[i] * y[i]
-        #    f_str += (" +" if co > 0 else " ") + str(co) + \
-        #        "*K(" + str(x[i].tolist()) + ",x)"
-        # print(f_str)
+        print("α : " + str(a))
+        print("θ : " + str(theta))
+        f_str = "f(x) = "
+        for i in ok_indexes:
+            co = a[i] * y[i]
+            f_str += (" +" if co > 0 else " ") + str(co) + \
+                "*K(" + str(x[i].tolist()) + ",x)"
+        print(f_str)
     return f
 
 
