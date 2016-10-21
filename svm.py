@@ -131,7 +131,7 @@ def plot_animation(f, x, y):
     plt.show()
 
 
-def cross_validation_find(x, y, kernel, div):
+def cross_validation(x, y, kernel, div):
     n = len(y)
     assert n >= div
     passes = np.zeros(div)
@@ -147,7 +147,7 @@ def cross_validation_find(x, y, kernel, div):
     return passes.sum() / n, f
 
 
-def cross_validation(x, y, kernel, param_ranges, div, do_plot=False, eps=0.001):
+def search_parameter(x, y, kernel, param_ranges, div, do_plot=False, eps=0.001):
     dim = len(param_ranges)
     assert (dim == 1)
 
@@ -157,7 +157,7 @@ def cross_validation(x, y, kernel, param_ranges, div, do_plot=False, eps=0.001):
         for index in range(num + 1):
             i_seek = i + offset * (- 1 + 2 * (index / num))
             k = kernel([2 ** i_seek])
-            found, f = cross_validation_find(x, y, k, div)
+            found, f = cross_validation(x, y, k, div)
             founds.append([i_seek, found])
             result_str = "2 ** {:.4f} : {}%".format(i_seek, 100 * found)
             print(result_str)
@@ -195,10 +195,10 @@ kernels = {
 
 __doc__ = """{f}
 Usage:
-    {f} <filename> [-m | --method <method>] [--plot] [--cross-validation <divide_num>] [-h | --help] [-p | --param <param>]
+    {f} <filename> [-m | --method <method>] [-c | --cross <divide_num>] [--plot] [-p | --param <param>]
     {f} (-h | --help)
 Options:
-    --cross-validation   do cross validation
+    -c --cross           do cross validation
     -p --param           assign parameter (ex: gauss kernel sigma)
     -m --method          {methods} (default:gauss)
     --plot               show plotted graph (with matplotlib)
@@ -223,9 +223,10 @@ if __name__ == "__main__":
     param_ranges, kernel = kernels[args["<method>"]]
     x, y = load_npx_npy(args["<filename>"])
     x = (x - x.min(0)) / (x.max(0) - x.min(0))  # normalize
-    if args["--cross-validation"]:
+    #c = cross_validation(x, y, kernel([2 ** -4.6]), 10)
+    if args["--cross"]:
         div = int(args["<divide_num>"]) if args["<divide_num>"] else 10
-        p, found = cross_validation(
+        p, found = search_parameter(
             x, y, kernel, param_ranges, div, args["--plot"])
         print("p : {} | {}%".format(p, found * 100))
     else:
