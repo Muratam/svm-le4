@@ -32,7 +32,7 @@ def solve(x, y, kernel, show=True):
     theta = kernel_dot_to_w(x[max_index]) - y[max_index]
     f = lambda n_x: 1.0 if kernel_dot_to_w(n_x) - theta > 0 else -1.0
     if len(ok_indexes) == len(y):
-        print("All of Samples are Support Vector...")
+        #print("All of Samples are Support Vector...")
         return lambda n_x: -1
     if show:
         print("support_vectors : {}".format(len(ok_indexes)))

@@ -3,15 +3,19 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 #include "quadProg/QuadProg++.hh"
 #define REP(i, n) for (int i = 0; i < (n); ++i)
 using namespace std;
 
+// マルチスレッド / python -> c++ -> python
+
 struct Ok_ay_x {
   const double ay;
   const vector<double> x;
 };
+
 class Kernel {
  public:
   enum kernel_type { linear, polynomial, gauss };
@@ -30,6 +34,20 @@ class Kernel {
         double norm = 0;
         REP(i, x.size()) norm += (x[i] - y[i]) * (x[i] - y[i]);
         return exp(-0.5 * norm / param[0] / param[0]);
+    }
+  }
+  struct kernel_search_range {
+    double center, offset;
+  };
+  static kernel_search_range get_default_range(kernel_type k_type) {
+    switch (k_type) {
+      case linear:
+        assert(false);
+        break;
+      case polynomial:
+        return kernel_search_range({2.5, 2});
+      case gauss:
+        return kernel_search_range({-6, 7});
     }
   }
 };
@@ -87,6 +105,11 @@ class SVM {
   double func(const vector<double> &x) const {
     return kernel_dot_to_w(x) - theta > 0 ? 1.0 : -1.0;
   }
+  double test(const vector<vector<double>> &x, const vector<double> &y) const {
+    auto sum = 0;
+    REP(i, y.size()) sum += (func(x[i]) == y[i] ? 1 : 0);
+    return (double)sum / y.size();
+  }
 
  public:
   static void normalize(vector<vector<double>> &x) {
@@ -100,10 +123,67 @@ class SVM {
       REP(j, x.size()) { x[j][i] = (x[j][i] - min_val) / (max_val - min_val); }
     }
   }
-  double test(const vector<vector<double>> &x, const vector<double> &y) const {
-    auto sum = 0;
-    REP(i, y.size()) sum += (func(x[i]) == y[i] ? 1 : 0);
-    return (double)sum / y.size();
+  static double cross_validation(const vector<vector<double>> &x,
+                                 const vector<double> &y, Kernel kernel,
+                                 int div = 10) {
+    auto n = y.size();
+    assert(n == x.size() and n >= div);
+    auto passed_sum = 0;
+    REP(i, div) {
+      vector<vector<double>> train_x, test_x;
+      vector<double> train_y, test_y;
+      REP(j, n) {
+        if (j % div == i) {
+          test_x.push_back(x[j]);
+          test_y.push_back(y[j]);
+        } else {
+          train_x.push_back(x[j]);
+          train_y.push_back(y[j]);
+        }
+      }
+      SVM svm(train_x, train_y, kernel);
+      REP(j, test_x.size()) {
+        passed_sum += svm.func(test_x[j]) == test_y[j] ? 1 : 0;
+      }
+    }
+    return (double)passed_sum / n;
+  }
+  struct Center_Percent {
+    double center, percent;
+  };
+  static Center_Percent search_parameter(const vector<vector<double>> &x,
+                                         const vector<double> &y,
+                                         Kernel::kernel_type kernel_type,
+                                         int cross_validate_div = 10) {
+    auto find_deep = [&](Kernel::kernel_search_range range, int div = 10) {
+      // (2 ** (center - offset)) ~ (2 ** (center + offset )) を探す
+      double max_center = 0, max_percent = 0;
+      vector<thread> threads;
+      REP(i, div + 1) {
+        threads.push_back(thread([&]() {}));
+        auto center =
+            range.center + range.offset * (-1.0 + 2.0 * ((double)i / div));
+        Kernel kernel({kernel_type, {pow(2.0, center)}});
+        auto percent = cross_validation(x, y, kernel, cross_validate_div);
+        cout << "2 ** " << center << " : " << percent * 100.0 << "%" << endl;
+        if (percent > max_percent) {
+          max_center = center;
+          max_percent = percent;
+        }
+      }
+      return Center_Percent({max_center, max_percent});
+    };
+    auto range = Kernel::get_default_range(kernel_type);
+    auto found = find_deep(range);
+    while (true) {
+      range.offset /= 10.0;
+      range.center = found.center;
+      auto pro_found = find_deep(range);
+      if (abs(found.percent - found.percent) <= 0.0001) break;
+      found = pro_found;
+    }
+    // 2 ** center しないと
+    return found;
   }
 };
 
@@ -118,7 +198,6 @@ int main(int argc, char *const argv[]) {
     y.push_back(y1);
   }
   SVM::normalize(x);
-  SVM svm(x, y, Kernel(Kernel::gauss, {10.0}));
-  cout << svm.test(x, y);
+  SVM::search_parameter(x, y, Kernel::gauss);
   return 0;
 }
