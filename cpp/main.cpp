@@ -4,7 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "src/QuadProg++.hh"
+#include "quadProg/QuadProg++.hh"
 #define REP(i, n) for (int i = 0; i < (n); ++i)
 using namespace std;
 
