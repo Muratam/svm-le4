@@ -244,7 +244,8 @@ class SVM {
     for (string line; getline(ifile, line) and cin.good();) {
       auto n = 0.0;
       auto xi = vector<double>();
-      for (istringstream iss(line); iss >> n and iss.good();) {
+      for (istringstream iss(line); iss.good();) {
+        iss >> n;
         xi.push_back(n);
       }
       y.push_back(xi[xi.size() - 1]);
@@ -257,13 +258,13 @@ class SVM {
 const auto cmd =
     "<<argv[0]>> <dataname> [gauss| polynomial | linear] [--cross 5] "
     "[--param 10] [--show] [--plot [100]]";
-auto parse_args(vector<string> args, vector<tuple<string, string>> kvs) {
+auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
   unordered_map<string, string> res;
   for (auto kv : kvs) {
-    for (auto arg : args) {
-      if (get<0>(kv) == arg) {
-        res[arg] = get<1>(kv);
-      }
+    auto seekedarg = ALL(find, args, get<0>(kv));
+    if (seekedarg != args.end()) {
+      res[get<0>(kv)] =
+          seekedarg + 1 == args.end() ? get<1>(kv) : *(seekedarg + 1);
     }
   }
   return res;
@@ -278,31 +279,28 @@ int main(int argc, char *const argv[]) {
   vector<double> y;
   SVM::read_data(argv[1], x, y);
   SVM::normalize(x);
-  //{{"--cross",10},{"--plot",0},{"--show",0},{"--param",10}}
-  const auto args_cross_validation = ALL(find, args, "--cross");
-  const auto args_plot = ALL(find, args, "--plot");
-  const auto args_param = ALL(find, args, "--param");
-  const auto should_cross_validation = args_cross_validation != args.end();
-  const auto should_plot = args_plot != args.end();
-  const auto should_show = ALL(find, args, "--show") != args.end();
-  const int div = args_cross_validation + 1 == args.end()
-                      ? 10
-                      : atoi((*(args_cross_validation + 1)).c_str());
-  const auto plot_grid =
-      args_plot + 1 == args.end() ? 0 : atoi((*(args_plot + 1)).c_str());
-  const auto param =
-      args_param + 1 == args.end() ? 10.0 : atof((*(args_param + 1)).c_str());
-  if (should_cross_validation) {
-    const auto cp = SVM::search_parameter(x, y, kernel_kind, should_show, div);
-    if (!should_show) {
+  const string CROSS = "--cross", PLOT = "--plot", SHOW = "--show",
+               PARAM = "--param";
+  auto parsed = parse_args(
+      args, {{CROSS, "10"}, {PLOT, "0"}, {SHOW, "0"}, {PARAM, "10"}});
+  if (parsed.count(CROSS)) {
+    const auto cp = SVM::search_parameter(x, y, kernel_kind, parsed.count(SHOW),
+                                          atof(parsed[CROSS].c_str()));
+    if (parsed.count(PLOT)) {
+      SVM svm(x, y, Kernel(kernel_kind, {pow(2, cp.center)}));
+      svm.plot_data(x, y, atoi(parsed[PLOT].c_str()));
     } else {
-      cout << "RESULT :: " << pow(2, cp.center) << " | " << 100 * cp.percent
-           << "% \n";
+      if (!parsed.count(SHOW)) {
+        cout << pow(2, cp.center) << " | " << 100 * cp.percent << endl;
+      } else {
+        cout << "RESULT :: " << pow(2, cp.center) << " | " << 100 * cp.percent
+             << "% \n";
+      }
     }
   } else {
-    SVM svm(x, y, Kernel(kernel_kind, {param}));
-    if (should_plot) {
-      svm.plot_data(x, y, plot_grid);
+    SVM svm(x, y, Kernel(kernel_kind, {atof(parsed[PARAM].c_str())}));
+    if (parsed.count(PLOT)) {
+      svm.plot_data(x, y, atoi(parsed[PLOT].c_str()));
     } else {
       svm.test(x, y);
     }
