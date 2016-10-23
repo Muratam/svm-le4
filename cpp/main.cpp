@@ -204,10 +204,10 @@ class SVM {
 int main(int argc, char *const argv[]) {
   vector<vector<double>> x;
   vector<double> y;
-  while (true) {
+
+  while (cin.good()) {
     double x1, x2, y1;
     cin >> x1 >> x2 >> y1;
-    if (x1 == x2 and x2 == y1 and y1 == 0) break;
     x.push_back(vector<double>({x1, x2}));
     y.push_back(y1);
   }
