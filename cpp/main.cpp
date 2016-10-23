@@ -9,7 +9,7 @@
 #define REP(i, n) for (int i = 0; i < (n); ++i)
 using namespace std;
 
-// マルチスレッド / python -> c++ -> python
+// readline /  python -> c++ -> python
 
 struct Ok_ay_x {
   const double ay;
@@ -86,9 +86,14 @@ class SVM {
     REP(i, n) h[i] = 0;
     REP(i, n) A[i][0] = y[i];
     b[0] = 0;
-    solve_quadprog(P, q, A, b, G, h, a);
-    auto max_index = 0, max_val = 0;
     this->oks.clear();
+    try {
+      solve_quadprog(P, q, A, b, G, h, a);
+    } catch (exception e) {
+      // cout << "invalid A" << endl;
+      return;
+    }
+    auto max_index = 0, max_val = 0;
     REP(i, n) {
       if (abs(a[i]) > 1e-5) {
         this->oks.push_back(Ok_ay_x({a[i] * y[i], x[i]}));
@@ -157,21 +162,31 @@ class SVM {
                                          int cross_validate_div = 10) {
     auto find_deep = [&](Kernel::kernel_search_range range, int div = 10) {
       // (2 ** (center - offset)) ~ (2 ** (center + offset )) を探す
-      double max_center = 0, max_percent = 0;
+      vector<Center_Percent> cps(div + 1);
       vector<thread> threads;
+      mutex cout_guard;
       REP(i, div + 1) {
-        threads.push_back(thread([&]() {}));
-        auto center =
-            range.center + range.offset * (-1.0 + 2.0 * ((double)i / div));
-        Kernel kernel({kernel_type, {pow(2.0, center)}});
-        auto percent = cross_validation(x, y, kernel, cross_validate_div);
-        cout << "2 ** " << center << " : " << percent * 100.0 << "%" << endl;
-        if (percent > max_percent) {
-          max_center = center;
-          max_percent = percent;
+        threads.push_back(thread([&, i]() {
+          auto center =
+              range.center + range.offset * (-1.0 + 2.0 * ((double)i / div));
+          Kernel kernel({kernel_type, {pow(2.0, center)}});
+          auto percent = cross_validation(x, y, kernel, cross_validate_div);
+          cps[i] = Center_Percent({center, percent});
+          lock_guard<mutex> lk(cout_guard);
+          cout << "2 ** " << center << " : " << percent * 100.0 << "%" << endl;
+        }));
+      }
+      for (auto &th : threads) {
+        th.join();
+      }
+      Center_Percent maxcp({0, 0});
+      for (auto &cp : cps) {
+        if (cp.percent > maxcp.percent) {
+          maxcp.percent = cp.percent;
+          maxcp.center = cp.center;
         }
       }
-      return Center_Percent({max_center, max_percent});
+      return maxcp;
     };
     auto range = Kernel::get_default_range(kernel_type);
     auto found = find_deep(range);
@@ -182,7 +197,6 @@ class SVM {
       if (abs(found.percent - found.percent) <= 0.0001) break;
       found = pro_found;
     }
-    // 2 ** center しないと
     return found;
   }
 };
@@ -198,6 +212,6 @@ int main(int argc, char *const argv[]) {
     y.push_back(y1);
   }
   SVM::normalize(x);
-  SVM::search_parameter(x, y, Kernel::gauss);
+  SVM::search_parameter(x, y, Kernel::polynomial);
   return 0;
 }

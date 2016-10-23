@@ -32,13 +32,13 @@ File $Id: QuadProg++.cc 232 2007-06-21 12:29:00Z digasper $
 
  */
 
-#include "QuadProg++.hh"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include "QuadProg++.hh"
 //#define TRACE_SOLVER
 
 // Utility functions for updating some data needed by the solution method
@@ -103,7 +103,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
   }
   x.resize(n);
   int i, j, k, l; /* indices */
-  int ip; // this is the index of the constraint to be added to the active set
+  int ip;  // this is the index of the constraint to be added to the active set
   Matrix<double> R(n, n), J(n, n);
   Vector<double> s(m + p), z(n), r(m + p), d(n), np(n), u(m + p), x_old(n),
       u_old(m + p);
@@ -151,8 +151,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
   /* initialize the matrix R */
   for (i = 0; i < n; i++) {
     d[i] = 0.0;
-    for (j = 0; j < n; j++)
-      R[i][j] = 0.0;
+    for (j = 0; j < n; j++) R[i][j] = 0.0;
   }
   R_norm = 1.0; /* this variable will hold the norm of the matrix R */
 
@@ -162,8 +161,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
   for (i = 0; i < n; i++) {
     d[i] = 1.0;
     forward_elimination(G, z, d);
-    for (j = 0; j < n; j++)
-      J[i][j] = z[j];
+    for (j = 0; j < n; j++) J[i][j] = z[j];
     c2 += z[i];
     d[i] = 0.0;
   }
@@ -179,8 +177,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
    * x = G^-1 * g0
    */
   cholesky_solve(G, x, g0);
-  for (i = 0; i < n; i++)
-    x[i] = -x[i];
+  for (i = 0; i < n; i++) x[i] = -x[i];
   /* and compute the current solution value */
   f_value = 0.5 * scalar_product(g0, x);
 #ifdef TRACE_SOLVER
@@ -191,8 +188,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
   /* Add equality constraints to the working set A */
   iq = 0;
   for (i = 0; i < p; i++) {
-    for (j = 0; j < n; j++)
-      np[j] = CE[j][i];
+    for (j = 0; j < n; j++) np[j] = CE[j][i];
     compute_d(d, J, np);
     update_z(z, J, d, iq);
     update_r(R, r, d, iq);
@@ -208,17 +204,15 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
       becomes feasible */
     t2 = 0.0;
     if (fabs(scalar_product(z, z)) >
-        std::numeric_limits<double>::epsilon()) // i.e. z != 0
+        std::numeric_limits<double>::epsilon())  // i.e. z != 0
       t2 = (-scalar_product(np, x) - ce0[i]) / scalar_product(z, np);
 
     /* set x = x + t2 * z */
-    for (k = 0; k < n; k++)
-      x[k] += t2 * z[k];
+    for (k = 0; k < n; k++) x[k] += t2 * z[k];
 
     /* set u = u+ */
     u[iq] = t2;
-    for (k = 0; k < iq; k++)
-      u[k] -= t2 * r[k];
+    for (k = 0; k < iq; k++) u[k] -= t2 * r[k];
 
     /* compute the new solution value */
     f_value += 0.5 * (t2 * t2) * scalar_product(z, np);
@@ -232,8 +226,7 @@ double solve_quadprog(Matrix<double> &G, Vector<double> &g0,
   }
 
   /* set iai = K \ A */
-  for (i = 0; i < m; i++)
-    iai[i] = i;
+  for (i = 0; i < m; i++) iai[i] = i;
 
 l1:
   iter++;
@@ -253,8 +246,7 @@ l1:
   for (i = 0; i < m; i++) {
     iaexcl[i] = true;
     sum = 0.0;
-    for (j = 0; j < n; j++)
-      sum += CI[j][i] * x[j];
+    for (j = 0; j < n; j++) sum += CI[j][i] * x[j];
     sum += ci0[i];
     s[i] = sum;
     psi += std::min(0.0, sum);
@@ -277,8 +269,7 @@ l1:
     A_old[i] = A[i];
   }
   /* and for x */
-  for (i = 0; i < n; i++)
-    x_old[i] = x[i];
+  for (i = 0; i < n; i++) x_old[i] = x[i];
 
 l2: /* Step 2: check for feasibility and determine a new S-pair */
   for (i = 0; i < m; i++) {
@@ -294,8 +285,7 @@ l2: /* Step 2: check for feasibility and determine a new S-pair */
   }
 
   /* set np = n[ip] */
-  for (i = 0; i < n; i++)
-    np[i] = CI[i][ip];
+  for (i = 0; i < n; i++) np[i] = CI[i][ip];
   /* set u = [u 0]^T */
   u[iq] = 0.0;
   /* add ip to the active set A */
@@ -340,11 +330,11 @@ l2a: /* Step 2a: determine step direction */
   /* Compute t2: full step length (minimum step in primal space such that the
    * constraint ip becomes feasible */
   if (fabs(scalar_product(z, z)) >
-      std::numeric_limits<double>::epsilon()) // i.e. z != 0
+      std::numeric_limits<double>::epsilon())  // i.e. z != 0
   {
     t2 = -s[ip] / scalar_product(z, np);
-    if (t2 < 0) // patch suggested by Takano Akio for handling numerical
-                // inconsistencies
+    if (t2 < 0)  // patch suggested by Takano Akio for handling numerical
+                 // inconsistencies
       t2 = inf;
   } else
     t2 = inf; /* +inf */
@@ -368,8 +358,7 @@ l2a: /* Step 2a: determine step direction */
   /* case (ii): step in dual space */
   if (t2 >= inf) {
     /* set u = u +  t * [-r 1] and drop constraint l from the active set A */
-    for (k = 0; k < iq; k++)
-      u[k] -= t * r[k];
+    for (k = 0; k < iq; k++) u[k] -= t * r[k];
     u[iq] += t;
     iai[l] = l;
     delete_constraint(R, J, A, u, n, p, iq, l);
@@ -385,13 +374,11 @@ l2a: /* Step 2a: determine step direction */
   /* case (iii): step in primal and dual space */
 
   /* set x = x + t * z */
-  for (k = 0; k < n; k++)
-    x[k] += t * z[k];
+  for (k = 0; k < n; k++) x[k] += t * z[k];
   /* update the solution value */
   f_value += t * scalar_product(z, np) * (0.5 * t + u[iq]);
   /* u = u + t * [-r 1] */
-  for (k = 0; k < iq; k++)
-    u[k] -= t * r[k];
+  for (k = 0; k < iq; k++) u[k] -= t * r[k];
   u[iq] += t;
 #ifdef TRACE_SOLVER
   std::cout << " in both spaces: " << f_value << std::endl;
@@ -416,15 +403,13 @@ l2a: /* Step 2a: determine step direction */
       print_vector("A", A, iq);
       print_vector("iai", iai);
 #endif
-      for (i = 0; i < m; i++)
-        iai[i] = i;
+      for (i = 0; i < m; i++) iai[i] = i;
       for (i = p; i < iq; i++) {
         A[i] = A_old[i];
         u[i] = u_old[i];
         iai[A[i]] = -1;
       }
-      for (i = 0; i < n; i++)
-        x[i] = x_old[i];
+      for (i = 0; i < n; i++) x[i] = x_old[i];
       goto l2; /* go to step 2 */
     } else
       iai[ip] = -1;
@@ -451,8 +436,7 @@ l2a: /* Step 2a: determine step direction */
 
   /* update s[ip] = CI * x + ci0 */
   sum = 0.0;
-  for (k = 0; k < n; k++)
-    sum += CI[k][ip] * x[k];
+  for (k = 0; k < n; k++) sum += CI[k][ip] * x[k];
   s[ip] = sum + ci0[ip];
 
 #ifdef TRACE_SOLVER
@@ -469,8 +453,7 @@ inline void compute_d(Vector<double> &d, const Matrix<double> &J,
   /* compute d = H^T * np */
   for (i = 0; i < n; i++) {
     sum = 0.0;
-    for (j = 0; j < n; j++)
-      sum += J[j][i] * np[j];
+    for (j = 0; j < n; j++) sum += J[j][i] * np[j];
     d[i] = sum;
   }
 }
@@ -482,8 +465,7 @@ inline void update_z(Vector<double> &z, const Matrix<double> &J,
   /* setting of z = H * d */
   for (i = 0; i < n; i++) {
     z[i] = 0.0;
-    for (j = iq; j < n; j++)
-      z[i] += J[i][j] * d[j];
+    for (j = iq; j < n; j++) z[i] += J[i][j] * d[j];
   }
 }
 
@@ -495,8 +477,7 @@ inline void update_r(const Matrix<double> &R, Vector<double> &r,
   /* setting of r = R^-1 d */
   for (i = iq - 1; i >= 0; i--) {
     sum = 0.0;
-    for (j = i + 1; j < iq; j++)
-      sum += R[i][j] * r[j];
+    for (j = i + 1; j < iq; j++) sum += R[i][j] * r[j];
     r[i] = (d[i] - sum) / R[i][i];
   }
 }
@@ -526,7 +507,7 @@ bool add_constraint(Matrix<double> &R, Matrix<double> &J, Vector<double> &d,
     cc = d[j - 1];
     ss = d[j];
     h = distance(cc, ss);
-    if (fabs(h) < std::numeric_limits<double>::epsilon()) // h == 0
+    if (fabs(h) < std::numeric_limits<double>::epsilon())  // h == 0
       continue;
     d[j] = 0.0;
     ss = ss / h;
@@ -550,8 +531,7 @@ bool add_constraint(Matrix<double> &R, Matrix<double> &J, Vector<double> &d,
   /* To update R we have to put the iq components of the d vector
     into column iq - 1 of R
     */
-  for (i = 0; i < iq; i++)
-    R[i][iq - 1] = d[i];
+  for (i = 0; i < iq; i++) R[i][iq - 1] = d[i];
 #ifdef TRACE_SOLVER
   std::cout << iq << std::endl;
   print_matrix("R", R, iq, iq);
@@ -572,7 +552,7 @@ void delete_constraint(Matrix<double> &R, Matrix<double> &J, Vector<int> &A,
 #ifdef TRACE_SOLVER
   std::cout << "Delete constraint " << l << ' ' << iq;
 #endif
-  int i, j, k, qq = -1; // just to prevent warnings from smart compilers
+  int i, j, k, qq = -1;  // just to prevent warnings from smart compilers
   double cc, ss, h, xny, t1, t2;
 
   /* Find the index qq for active constraint l to be removed */
@@ -586,30 +566,27 @@ void delete_constraint(Matrix<double> &R, Matrix<double> &J, Vector<int> &A,
   for (i = qq; i < iq - 1; i++) {
     A[i] = A[i + 1];
     u[i] = u[i + 1];
-    for (j = 0; j < n; j++)
-      R[j][i] = R[j][i + 1];
+    for (j = 0; j < n; j++) R[j][i] = R[j][i + 1];
   }
 
   A[iq - 1] = A[iq];
   u[iq - 1] = u[iq];
   A[iq] = 0;
   u[iq] = 0.0;
-  for (j = 0; j < iq; j++)
-    R[j][iq - 1] = 0.0;
+  for (j = 0; j < iq; j++) R[j][iq - 1] = 0.0;
   /* constraint has been fully removed */
   iq--;
 #ifdef TRACE_SOLVER
   std::cout << '/' << iq << std::endl;
 #endif
 
-  if (iq == 0)
-    return;
+  if (iq == 0) return;
 
   for (j = qq; j < iq; j++) {
     cc = R[j][j];
     ss = R[j + 1][j];
     h = distance(cc, ss);
-    if (fabs(h) < std::numeric_limits<double>::epsilon()) // h == 0
+    if (fabs(h) < std::numeric_limits<double>::epsilon())  // h == 0
       continue;
     cc = cc / h;
     ss = ss / h;
@@ -656,8 +633,7 @@ inline double scalar_product(const Vector<double> &x, const Vector<double> &y) {
   double sum;
 
   sum = 0.0;
-  for (i = 0; i < n; i++)
-    sum += x[i] * y[i];
+  for (i = 0; i < n; i++) sum += x[i] * y[i];
   return sum;
 }
 
@@ -668,14 +644,13 @@ void cholesky_decomposition(Matrix<double> &A) {
   for (i = 0; i < n; i++) {
     for (j = i; j < n; j++) {
       sum = A[i][j];
-      for (k = i - 1; k >= 0; k--)
-        sum -= A[i][k] * A[j][k];
+      for (k = i - 1; k >= 0; k--) sum -= A[i][k] * A[j][k];
       if (i == j) {
         if (sum <= 0.0) {
           std::ostringstream os;
           // raise error
-          print_matrix("A", A);
-          os << "Error in cholesky decomposition, sum: " << sum;
+          // print_matrix("A", A);
+          os << "Error in A cholesky decomposition, sum: " << sum;
           throw std::logic_error(os.str());
           exit(-1);
         }
@@ -683,8 +658,7 @@ void cholesky_decomposition(Matrix<double> &A) {
       } else
         A[j][i] = sum / A[i][i];
     }
-    for (k = i + 1; k < n; k++)
-      A[i][k] = A[k][i];
+    for (k = i + 1; k < n; k++) A[i][k] = A[k][i];
   }
 }
 
@@ -706,8 +680,7 @@ inline void forward_elimination(const Matrix<double> &L, Vector<double> &y,
   y[0] = b[0] / L[0][0];
   for (i = 1; i < n; i++) {
     y[i] = b[i];
-    for (j = 0; j < i; j++)
-      y[i] -= L[i][j] * y[j];
+    for (j = 0; j < i; j++) y[i] -= L[i][j] * y[j];
     y[i] = y[i] / L[i][i];
   }
 }
@@ -719,8 +692,7 @@ inline void backward_elimination(const Matrix<double> &U, Vector<double> &x,
   x[n - 1] = y[n - 1] / U[n - 1][n - 1];
   for (i = n - 2; i >= 0; i--) {
     x[i] = y[i];
-    for (j = i + 1; j < n; j++)
-      x[i] -= U[i][j] * x[j];
+    for (j = i + 1; j < n; j++) x[i] -= U[i][j] * x[j];
     x[i] = x[i] / U[i][i];
   }
 }
@@ -728,21 +700,19 @@ inline void backward_elimination(const Matrix<double> &U, Vector<double> &x,
 void print_matrix(const char *name, const Matrix<double> &A, int n, int m) {
   std::ostringstream s;
   std::string t;
-  if (n == -1)
-    n = A.nrows();
-  if (m == -1)
-    m = A.ncols();
+  if (n == -1) n = A.nrows();
+  if (m == -1) m = A.ncols();
 
   s << name << ": " << std::endl;
   for (int i = 0; i < n; i++) {
     s << " ";
-    for (int j = 0; j < m; j++)
-      s << A[i][j] << ", ";
+    for (int j = 0; j < m; j++) s << A[i][j] << ", ";
     s << std::endl;
   }
   t = s.str();
-  t = t.substr(0,
-               t.size() - 3); // To remove the trailing space, comma and newline
+  t = t.substr(
+      0,
+      t.size() - 3);  // To remove the trailing space, comma and newline
 
   std::cout << t << std::endl;
 }
@@ -750,15 +720,14 @@ void print_matrix(const char *name, const Matrix<double> &A, int n, int m) {
 void print_vector(const char *name, const Vector<double> &v, int n) {
   std::ostringstream s;
   std::string t;
-  if (n == -1)
-    n = v.size();
+  if (n == -1) n = v.size();
 
   s << name << ": " << std::endl << " ";
   for (int i = 0; i < n; i++) {
     s << v[i] << ", ";
   }
   t = s.str();
-  t = t.substr(0, t.size() - 2); // To remove the trailing space and comma
+  t = t.substr(0, t.size() - 2);  // To remove the trailing space and comma
 
   std::cout << t << std::endl;
 }
