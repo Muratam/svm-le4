@@ -129,6 +129,24 @@ class SVM {
     REP(i, y.size()) sum += (func(x[i]) == y[i] ? 1 : 0);
     cout << sum << " / " << y.size() << endl;
   }
+  void plot_data(const vector<vector<double>> &x, const vector<double> &y,
+                 const int plot_grid = 0) {
+    bool print_grid = plot_grid > 0;
+    if (print_grid) {
+      REP(i, plot_grid) {
+        REP(j, plot_grid) {
+          auto i_p = (double)i / plot_grid, j_p = (double)j / plot_grid;
+          cout << i_p << " " << j_p << " ";
+          cout << func({i_p, j_p}) << endl;
+        }
+      }
+    } else {
+      REP(i, x.size()) {
+        REP(j, x[0].size()) { cout << x[i][j] << " "; }
+        cout << func(x[i]) << endl;
+      }
+    }
+  }
 
  public:
   static void normalize(vector<vector<double>> &x) {
@@ -226,8 +244,7 @@ class SVM {
     for (string line; getline(ifile, line) and cin.good();) {
       auto n = 0.0;
       auto xi = vector<double>();
-      for (istringstream iss(line); iss.good();) {
-        iss >> n;
+      for (istringstream iss(line); iss >> n and iss.good();) {
         xi.push_back(n);
       }
       y.push_back(xi[xi.size() - 1]);
@@ -237,30 +254,58 @@ class SVM {
     ifile.close();
   }
 };
+const auto cmd =
+    "<<argv[0]>> <dataname> [gauss| polynomial | linear] [--cross 5] "
+    "[--param 10] [--show] [--plot [100]]";
+auto parse_args(vector<string> args, vector<tuple<string, string>> kvs) {
+  unordered_map<string, string> res;
+  for (auto kv : kvs) {
+    for (auto arg : args) {
+      if (get<0>(kv) == arg) {
+        res[arg] = get<1>(kv);
+      }
+    }
+  }
+  return res;
+}
 
 int main(int argc, char *const argv[]) {
   vector<string> args;
   FOR(i, 1, argc) args.push_back(argv[i]);
   assert(argc >= 2);
-  auto kernel_kind = Kernel::strings2kernel_kind(args);
-  auto should_show = ALL(find, args, "--show") != args.end();
-  auto args_cross_validation = ALL(find, args, "-c");
-  auto should_cross_validation = args_cross_validation != args.end();
-  int cross_validation_div = std::atoi((*(args_cross_validation + 1)).c_str());
+  const auto kernel_kind = Kernel::strings2kernel_kind(args);
   vector<vector<double>> x;
   vector<double> y;
   SVM::read_data(argv[1], x, y);
   SVM::normalize(x);
+  //{{"--cross",10},{"--plot",0},{"--show",0},{"--param",10}}
+  const auto args_cross_validation = ALL(find, args, "--cross");
+  const auto args_plot = ALL(find, args, "--plot");
+  const auto args_param = ALL(find, args, "--param");
+  const auto should_cross_validation = args_cross_validation != args.end();
+  const auto should_plot = args_plot != args.end();
+  const auto should_show = ALL(find, args, "--show") != args.end();
+  const int div = args_cross_validation + 1 == args.end()
+                      ? 10
+                      : atoi((*(args_cross_validation + 1)).c_str());
+  const auto plot_grid =
+      args_plot + 1 == args.end() ? 0 : atoi((*(args_plot + 1)).c_str());
+  const auto param =
+      args_param + 1 == args.end() ? 10.0 : atof((*(args_param + 1)).c_str());
   if (should_cross_validation) {
-    auto cp = SVM::search_parameter(x, y, kernel_kind, should_show,
-                                    cross_validation_div);
-    if (!should_show)
-      cout << pow(2, cp.center) << "\n" << 100 * cp.percent << "\n";
-    else
+    const auto cp = SVM::search_parameter(x, y, kernel_kind, should_show, div);
+    if (!should_show) {
+    } else {
       cout << "RESULT :: " << pow(2, cp.center) << " | " << 100 * cp.percent
            << "% \n";
+    }
   } else {
-    SVM(x, y, Kernel(kernel_kind, {10})).test(x, y);
+    SVM svm(x, y, Kernel(kernel_kind, {param}));
+    if (should_plot) {
+      svm.plot_data(x, y, plot_grid);
+    } else {
+      svm.test(x, y);
+    }
   }
   return 0;
 }

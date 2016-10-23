@@ -5,16 +5,16 @@ import subprocess
 
 __doc__ = """{f}
 Usage:
-    {f} <filename> [-m | --method <method>] [--cross <divide_num>] [--plot] [-p | --param <param>] [--cpp <executale>] [--show]
+    {f} <filename> [--method <method>] [--cross <divide_num>] [--param <param>] [--cpp <executale>] [--show] [--plot]
     {f} (-h | --help)
 Options:
+    --method    {methods} (default:gauss)
     --cross     do cross validation
-    -p --param     assign parameter (ex: gauss kernel sigma)
-    -m --method    {methods} (default:gauss)
-    --cpp          execute in cpp (bia shell)
-    --show         show progress (ex: crossvalidation parameter)
-    --plot         show plotted graph (with matplotlib)
-    -h --help      show this help.
+    --param     assign parameter (ex: gauss kernel sigma)
+    --cpp       execute in cpp (bia shell)
+    --show      show progress (ex: crossvalidation parameter)
+    --plot      show plotted graph (with matplotlib)
+    -h --help   show this help.
 """.format(f=__file__, methods=str(",".join(svmcore.kernels.keys())))
 
 
