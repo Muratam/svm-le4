@@ -1,3 +1,6 @@
+#! /usr/bin/env python3
+# ls data/*.dat
+# | xargs -n 1 -P 16 -I % ./plotdata.py %sample_data/te.dat --save %.png
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
@@ -53,6 +56,8 @@ def plot(x, y, base_x, base_y, save_file_name=None):
         plt.show()
 
 if __name__ == "__main__":
+    #print(sys.argv)
+    #exit()
     args = docopt(__doc__)
     if args["<basefilename>"]:
         with open(args["<basefilename>"], "r") as f:
