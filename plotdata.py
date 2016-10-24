@@ -5,7 +5,7 @@ from docopt import docopt
 
 __doc__ = """{f}
 Usage:
-    {f} [<filename>] [--save <savefilename>]
+    {f} <filename> [<basefilename>] [--save <savefilename>]
     {f} (-h | --help)
 Options:
     --save      save output as png file
@@ -54,12 +54,13 @@ def plot(x, y, base_x, base_y, save_file_name=None):
 
 if __name__ == "__main__":
     args = docopt(__doc__)
-    if len(sys.argv) > 1:
-        with open(args["<filename>"], "r") as f:
+    if args["<basefilename>"]:
+        with open(args["<basefilename>"], "r") as f:
             base_x, base_y = load_spaced_data(f.readlines())
         minval, maxval = base_x.min(0), base_x.max(0)
         base_x = (base_x - minval) / (maxval - minval)  # normalize
     else:
         base_x, base_y = [], []
-    x, y = load_spaced_data(sys.stdin.readlines())
+    with open(args["<filename>"], "r") as f:
+        x, y = load_spaced_data(f.readlines())
     plot(x, y, base_x, base_y, args["<savefilename>"])
