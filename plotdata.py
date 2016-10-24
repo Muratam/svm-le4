@@ -1,12 +1,21 @@
-import svmcore
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from docopt import docopt
+
+__doc__ = """{f}
+Usage:
+    {f} [<filename>] [--save <savefilename>]
+    {f} (-h | --help)
+Options:
+    --save      save output as png file
+    -h --help   show this help.
+""".format(f=__file__)
 
 
-def read():
+def load_spaced_data(lines):
     x, y = [], []
-    for line in sys.stdin.readlines():
+    for line in lines:
         xk = line.split(" ")
         x.append([float(x) for x in xk[0:-1]])
         y.append(float(xk[-1]))
@@ -14,7 +23,7 @@ def read():
     return np.array(x), np.array(y)
 
 
-def plot(x, y, base_x, base_y):
+def plot(x, y, base_x, base_y, save_file_name=None):
     def separate(xs, ys):
         n = len(ys)
         assert len(xs) == n
@@ -37,14 +46,20 @@ def plot(x, y, base_x, base_y):
                     marker=markers[i], label=labels[i])
     plt.grid(True)
     plt.legend(loc='upper left')
-    plt.show()
+    # plt.title(result_str)
+    if save_file_name:
+        plt.savefig(save_file_name)
+    else:
+        plt.show()
 
 if __name__ == "__main__":
+    args = docopt(__doc__)
     if len(sys.argv) > 1:
-        base_x, base_y = svmcore.load_npx_npy(sys.argv[1])
-        base_x = (base_x - base_x.min(0)) / \
-            (base_x.max(0) - base_x.min(0))  # normalize
+        with open(args["<filename>"], "r") as f:
+            base_x, base_y = load_spaced_data(f.readlines())
+        minval, maxval = base_x.min(0), base_x.max(0)
+        base_x = (base_x - minval) / (maxval - minval)  # normalize
     else:
         base_x, base_y = [], []
-    x, y = read()
-    plot(x, y, base_x, base_y)
+    x, y = load_spaced_data(sys.stdin.readlines())
+    plot(x, y, base_x, base_y, args["<savefilename>"])

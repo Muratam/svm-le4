@@ -1,4 +1,7 @@
 // clang++ -std=c++14 main.cpp quadProg/QuadProg++.cc
+// <<argv[0]>> <dataname> [gauss| polynomial | linear] [--cross 5]
+//                        [--param 10] [--save a.dat] [--plot [100]]";
+
 #include <cassert>
 #include <fstream>
 #include <iostream>
@@ -130,22 +133,28 @@ class SVM {
     cout << sum << " / " << y.size() << endl;
   }
   void plot_data(const vector<vector<double>> &x, const vector<double> &y,
-                 const int plot_grid = 0) {
+                 const string filename, const int plot_grid = 100) {
+    if (filename == "") return;
+    ofstream ofile;
+    ofile.open(filename, std::ios::out);
+
     bool print_grid = plot_grid > 0;
     if (print_grid) {
       REP(i, plot_grid) {
         REP(j, plot_grid) {
           auto i_p = (double)i / plot_grid, j_p = (double)j / plot_grid;
-          cout << i_p << " " << j_p << " ";
-          cout << func({i_p, j_p}) << endl;
+          ofile << i_p << " " << j_p << " ";
+          ofile << func({i_p, j_p}) << endl;
         }
       }
     } else {
       REP(i, x.size()) {
-        REP(j, x[0].size()) { cout << x[i][j] << " "; }
-        cout << func(x[i]) << endl;
+        REP(j, x[0].size()) { ofile << x[i][j] << " "; }
+        ofile << func(x[i]) << endl;
       }
     }
+    ofile.close();
+    cout << "saved as " + filename << endl;
   }
 
  public:
@@ -188,11 +197,10 @@ class SVM {
   struct Center_Percent {
     double center, percent;
   };
-  static Center_Percent search_parameter(const vector<vector<double>> &x,
-                                         const vector<double> &y,
-                                         const Kernel::kind kind,
-                                         const bool show_progress = false,
-                                         int cross_validate_div = 10) {
+  static Center_Percent search_parameter(
+      const vector<vector<double>> &x, const vector<double> &y,
+      const Kernel::kind kind, function<void(Center_Percent)> when_created_svm,
+      int cross_validate_div = 10) {
     auto find_deep = [&](Kernel::search_range range, int div = 10) {
       vector<Center_Percent> cps(div + 1);
       vector<thread> threads;
@@ -204,11 +212,9 @@ class SVM {
           Kernel kernel({kind, {pow(2.0, center)}});
           auto percent = cross_validation(x, y, kernel, cross_validate_div);
           cps[i] = Center_Percent({center, percent});
-          if (show_progress) {
-            lock_guard<mutex> lk(cout_guard);
-            cout << "2 ** " << center << " : " << percent * 100.0 << "%"
-                 << endl;
-          }
+          lock_guard<mutex> lk(cout_guard);
+          cout << "2 ** " << center << " : " << percent * 100.0 << "%" << endl;
+          when_created_svm(cps[i]);
         }));
       }
       for (auto &th : threads) {
@@ -255,9 +261,6 @@ class SVM {
     ifile.close();
   }
 };
-const auto cmd =
-    "<<argv[0]>> <dataname> [gauss| polynomial | linear] [--cross 5] "
-    "[--param 10] [--show] [--plot [100]]";
 auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
   unordered_map<string, string> res;
   for (auto kv : kvs) {
@@ -273,34 +276,51 @@ auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
 int main(int argc, char *const argv[]) {
   vector<string> args;
   FOR(i, 1, argc) args.push_back(argv[i]);
-  assert(argc >= 2);
+  if (argc < 2) {
+    cout << "Usage :" << endl
+         << "    " << argv[0]
+         << " <dataname> [gauss| polynomial | linear] [--cross <div_num>]\n    "
+            "        [--param <param>] [--plot <filename>.dat]\n"
+         << "Options :\n"
+         << "    --cross      crossvalidation :: div_num\n"
+         << "    --plot       plot function :: file name\n"
+         << "    --plot-all   plot all of progress :: direcoty name\n"
+         << "    --param      defined parameter :: parameter\n"
+         << endl;
+    return -1;
+  }
   const auto kernel_kind = Kernel::strings2kernel_kind(args);
   vector<vector<double>> x;
   vector<double> y;
   SVM::read_data(argv[1], x, y);
   SVM::normalize(x);
-  const string CROSS = "--cross", PLOT = "--plot", SHOW = "--show",
-               PARAM = "--param";
+  const string CROSS = "--cross", PLOT = "--plot", PARAM = "--param",
+               PLOT_ALL = "--plot-all";
   auto parsed = parse_args(
-      args, {{CROSS, "10"}, {PLOT, "0"}, {SHOW, "0"}, {PARAM, "10"}});
-  if (parsed.count(CROSS)) {
-    const auto cp = SVM::search_parameter(x, y, kernel_kind, parsed.count(SHOW),
-                                          atof(parsed[CROSS].c_str()));
-    if (parsed.count(PLOT)) {
+      args,
+      {{CROSS, "10"}, {PLOT, "result.dat"}, {PARAM, "10"}, {PLOT_ALL, "data"}});
+  if (parsed.count(CROSS)) {  // 交差検定
+    const auto cp = SVM::search_parameter(
+        x, y, kernel_kind,
+        [&parsed, PLOT_ALL, &x, &y, &kernel_kind](auto cp) {
+          if (!parsed.count(PLOT_ALL)) return;
+          SVM svm(x, y, Kernel(kernel_kind, {pow(2, cp.center)}));
+          auto filename = parsed[PLOT_ALL] + "/" +
+                          to_string(pow(2, cp.center)) + "_" +
+                          to_string((int)(cp.percent * 100)) + "per.dat";
+          svm.plot_data(x, y, filename);
+        },
+        atof(parsed[CROSS].c_str()));
+    if (parsed.count(PLOT)) {  // 結果をプロット
       SVM svm(x, y, Kernel(kernel_kind, {pow(2, cp.center)}));
-      svm.plot_data(x, y, atoi(parsed[PLOT].c_str()));
-    } else {
-      if (!parsed.count(SHOW)) {
-        cout << pow(2, cp.center) << " | " << 100 * cp.percent << endl;
-      } else {
-        cout << "RESULT :: " << pow(2, cp.center) << " | " << 100 * cp.percent
-             << "% \n";
-      }
+      svm.plot_data(x, y, parsed[PLOT]);
     }
-  } else {
+    cout << "RESULT :: " << pow(2, cp.center) << " | " << 100 * cp.percent
+         << "% \n";
+  } else {  // 普通にパラメータを指定して(プロット/テストする)
     SVM svm(x, y, Kernel(kernel_kind, {atof(parsed[PARAM].c_str())}));
     if (parsed.count(PLOT)) {
-      svm.plot_data(x, y, atoi(parsed[PLOT].c_str()));
+      svm.plot_data(x, y, parsed[PLOT]);
     } else {
       svm.test(x, y);
     }
