@@ -11,7 +11,7 @@ class SVM {
   vector<Ok_ay_x> oks;
   double theta;
   const Kernel kernel;
-  double kernel_dot_to_w(const vector<double> &x) const {
+  virtual double kernel_dot_to_w(const vector<double> &x) const {
     double sum = 0;
     for (auto co : this->oks) {
       sum += co.ay * kernel.kernel(co.x, x);

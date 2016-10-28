@@ -1,17 +1,17 @@
 #! /usr/bin/env python3
-# ls data/*.dat
-# | xargs -n 1 -P 16 -I % ./plotdata.py %sample_data/te.dat --save %.png
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from docopt import docopt
+from mpl_toolkits.mplot3d import Axes3D
 
 __doc__ = """{f}
 Usage:
-    {f} <filename> [<basefilename>] [--save <savefilename>]
+    {f} <filename> [<basefilename>] [--save <savefilename>] [--3d]
     {f} (-h | --help)
 Options:
     --save      save output as png file
+    --3d        plot 3d
     -h --help   show this help.
 """.format(f=__file__)
 
@@ -19,7 +19,7 @@ Options:
 def load_spaced_data(lines):
     x, y = [], []
     for line in lines:
-        xk = line.split(" ")
+        xk = [_ for _ in line.split(" ") if _ != ""]
         x.append([float(x) for x in xk[0:-1]])
         y.append(float(xk[-1]))
     assert len(x) == len(y)
@@ -28,12 +28,10 @@ def load_spaced_data(lines):
 
 def plot(x, y, base_x, base_y, save_file_name=None):
     def separate(xs, ys):
-        n = len(ys)
-        assert len(xs) == n
-        x1p = [xs[i][0] for i in range(n) if ys[i] > 0]
-        x2p = [xs[i][1] for i in range(n) if ys[i] > 0]
-        x1m = [xs[i][0] for i in range(n) if ys[i] < 0]
-        x2m = [xs[i][1] for i in range(n) if ys[i] < 0]
+        x1p = xs[ys[:] > 0, 0]
+        x2p = xs[ys[:] > 0, 1]
+        x1m = xs[ys[:] < 0, 0]
+        x2m = xs[ys[:] < 0, 1]
         return x1p, x2p, x1m, x2m
     x1p, x2p, x1m, x2m = separate(base_x, base_y)
     x1pg, x2pg, x1mg, x2mg = separate(x, y)
@@ -43,7 +41,6 @@ def plot(x, y, base_x, base_y, save_file_name=None):
     ss = [10, 10, 30, 30]
     markers = ["x", "x", "o", "o"]
     labels = ["+1", "-1", "+1", "-1"]
-    plt.cla()
     for i in range(len(x1s)):
         plt.scatter(x1s[i], x2s[i], c=cs[i], s=ss[i],
                     marker=markers[i], label=labels[i])
@@ -55,9 +52,19 @@ def plot(x, y, base_x, base_y, save_file_name=None):
     else:
         plt.show()
 
+
+def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
+    # 散布図以外は mesh 変換処理を書く必要があるため保留。
+    X1 = np.r_[x[:, 0], base_x[:, 0]]
+    X2 = np.r_[x[:, 1], base_x[:, 1]]
+    Y = np.r_[y, base_y]
+    s = np.r_[[10] * len(y), [40] * len(base_y)]
+    Axes3D(plt.figure()).scatter3D(X1, X2, Y,
+                                   marker='x', c='b', s=s, alpha=0.4)
+    plt.show()
+
+
 if __name__ == "__main__":
-    #print(sys.argv)
-    #exit()
     args = docopt(__doc__)
     if args["<basefilename>"]:
         with open(args["<basefilename>"], "r") as f:
@@ -68,4 +75,7 @@ if __name__ == "__main__":
         base_x, base_y = [], []
     with open(args["<filename>"], "r") as f:
         x, y = load_spaced_data(f.readlines())
-    plot(x, y, base_x, base_y, args["<savefilename>"])
+    if args["--3d"]:
+        plot3d(x, y, base_x, base_y, args["<savefilename>"])
+    else:
+        plot(x, y, base_x, base_y, args["<savefilename>"])
