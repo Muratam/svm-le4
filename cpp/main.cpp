@@ -10,6 +10,7 @@ class SVR : public SVM {
   };
   const double eps;
   const double C;
+  bool is_valid = false;
   vector<Ok_b_x> oks;
 
   virtual double kernel_dot_to_w(const vector<double> &x) const override {
@@ -21,8 +22,9 @@ class SVR : public SVM {
   }
 
  public:
+  bool get_is_valid() { return is_valid; }
   SVR(const vector<vector<double>> &x, const vector<double> &y, Kernel kernel,
-      double C = 1000, double eps = 1e-9)
+      double C = 1000, double eps = 1e-2)
       : C(C), eps(eps), SVM(kernel) {
     solve(x, y);
   }
@@ -98,32 +100,96 @@ class SVR : public SVM {
         thetas.push_back(tmptheta);
       }
     }
-    assert(thetas.size() >= 1);
+    if (thetas.size() == 0) {
+      cout << "no theta!!!" << endl;
+      return;
+    }
+    if (this->oks.size() == 0) {
+      cout << "invalid data !!!" << endl;
+      return;
+    }
     ALL(sort, thetas);
-    cout << "theta: \n";
-    REP(i, thetas.size()) cout << thetas[i] << " ";
-    cout << endl;
     this->theta = thetas[thetas.size() / 2];  // 中央値をとる
     cout << "ø : " << theta << endl;
-    print_vector("a", alpha);
-    print_vector("a*", alphastar);
-    cout << "n : \n";
-    REP(i, oks.size()) { cout << oks[i].b << " "; }
-    cout << endl;
+    // print_vector("a", alpha);
+    // print_vector("a*", alphastar);
+    this->is_valid = true;
   }
   virtual double func(const vector<double> &x) const override {
+    if (not this->is_valid) return 0;
     return kernel_dot_to_w(x) - theta;
   }
   virtual void test(const vector<vector<double>> &x,
                     const vector<double> &y) const override {
-    cout << "diff :\n";
     auto sum = 0;
     REP(i, y.size()) {
       auto diff = abs(func(x[i]) - y[i]);
-      cout << diff << " ";
       sum += diff < eps * 1.1 ? 1 : 0;
     }
-    cout << "\n" << sum << " / " << y.size() << endl;
+    cout << sum << " / " << y.size() << endl;
+  }
+  enum cross_validation_type { mean_abs, mean_square, coefficient };
+  static double cross_validation(const vector<vector<double>> &x,
+                                 const vector<double> &y, const Kernel kernel,
+                                 const double C, const double eps = 1e-2,
+                                 const cross_validation_type cvtype = mean_abs,
+                                 const int div = 10) {
+    auto n = y.size();
+    assert(n == x.size() and n >= div);
+    double diff_res = 0.0;
+    int successed_sum = 0;
+    REP(i, div) {
+      vector<vector<double>> train_x, test_x;
+      vector<double> train_y, test_y;
+      REP(j, n) {
+        if (j % div == i) {
+          test_x.push_back(x[j]);
+          test_y.push_back(y[j]);
+        } else {
+          train_x.push_back(x[j]);
+          train_y.push_back(y[j]);
+        }
+      }
+      SVR svr(train_x, train_y, kernel, C, eps);
+      if (not svr.get_is_valid()) continue;
+      auto calc_diff = [](const auto &test_x, const auto &test_y,
+                          const auto &svr, const auto &cvtype) {
+        double diff = 0.0;
+        switch (cvtype) {
+          case mean_abs:
+            REP(j, test_x.size()) {
+              diff += abs(svr.func(test_x[j]) - test_y[j]);
+            }
+            break;
+          case mean_square:
+            REP(j, test_x.size()) {
+              double n_diff = svr.func(test_x[j]) - test_y[j];
+              diff += n_diff * n_diff;
+            }
+            break;
+          case coefficient:
+            double d1 = 0.0, d2 = 0.0;
+            double mean_test_y = 0.0;
+            REP(j, test_x.size()) {
+              double n_diff = svr.func(test_x[j]) - test_y[j];
+              d1 += n_diff * n_diff;
+            }
+            REP(j, test_x.size()) mean_test_y += test_y[j];
+            mean_test_y /= test_y.size();
+            REP(j, test_x.size()) {
+              double n_diff = mean_test_y - test_y[j];
+              d2 += n_diff * n_diff;
+            }
+            diff += (1 - d1 / d2);
+            break;
+        }
+        return diff;
+      };
+      diff_res += calc_diff(test_x, test_y, svr, cvtype);
+      successed_sum++;
+    }
+    if (successed_sum == 0) return 1e20;
+    return diff_res / n * div / successed_sum;
   }
 };
 
@@ -168,16 +234,19 @@ int main(int argc, char *const argv[]) {
   vector<vector<double>> x;
   vector<double> y;
   Kernel::read_data(argv[1], x, y);
-  // Kernel::normalize(x);
+  Kernel::normalize(x);
 
   if (parsed.count(CROSS)) {  // 交差検定dd
   } else {  // 普通にパラメータを指定して(プロット/テストする)
-    SVR svr(x, y, Kernel(kernel_kind, {atof(parsed[PARAM].c_str())}), 1000,
-            0.01);
+    auto kernel = Kernel(kernel_kind, {atof(parsed[PARAM].c_str())});
+    SVR svr(x, y, kernel, 1000, 0.01);
     if (parsed.count(PLOT)) {
       svr.plot_data(x, y, parsed[PLOT]);
     } else {
       svr.test(x, y);
+      cout << SVR::cross_validation(x, y, kernel, 1000, 0.01, SVR::mean_square,
+                                    5)
+           << "\n";
     }
 
     return 0;
