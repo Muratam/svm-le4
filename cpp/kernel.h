@@ -42,7 +42,7 @@ class Kernel {
       case linear:
         return search_range({1.0, 1.0});
       case polynomial:
-        return search_range({2.5, 2});
+        return search_range({3, 2});
       case gauss:
         return search_range({-6, 7});
     }

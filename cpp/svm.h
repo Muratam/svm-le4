@@ -145,9 +145,7 @@ class SVM {
           when_created_svm(cps[i]);
         }));
       }
-      for (auto &th : threads) {
-        th.join();
-      }
+      for (auto &th : threads) th.join();
       Center_Percent maxcp({0, 0});
       for (auto &cp : cps) {
         if (cp.percent > maxcp.percent) {

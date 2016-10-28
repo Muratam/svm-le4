@@ -49,7 +49,7 @@ class SVR : public SVM {
         P[k][l] = kernel.kernel(x[k], x[l]);
       }
     }
-    REP(i, r * 2) P[i][i] += 1e-12;
+    REP(i, r * 2) P[i][i] += 1e-9;
     REP(i, r) q[i] = -y[i];
     FOR(i, r, r * 2) q[i] = eps;
     REP(i, r) {
@@ -66,8 +66,12 @@ class SVR : public SVM {
     FOR(i, 2 * r, 4 * r) h[i] = 2 * C;
     REP(i, r) A[i][0] = 1;
     b[0] = 0;
-    solve_quadprog(P, q, A, b, G, h, d);
-
+    try {
+      solve_quadprog(P, q, A, b, G, h, d);
+    } catch (exception e) {
+      // cout << "invalid matrix" << endl;
+      return;
+    }
     this->oks.clear();
     this->theta = 0;
     double EPS = eps;  // MEMO 内部浮動小数点処理用eps (epsに依存すべき？)
@@ -131,12 +135,23 @@ class SVR : public SVM {
     }
     cout << sum << " / " << y.size() << endl;
   }
-  enum cross_validation_type { mean_abs, mean_square, coefficient };
+  enum cross_validation_type {
+    mean_abs,
+    mean_square,
+    coefficient,
+    correct_num
+  };
   static double calc_diff(const vector<vector<double>> &test_x,
                           const vector<double> &test_y, const SVR &svr,
-                          const cross_validation_type &cvtype) {
+                          const cross_validation_type &cvtype,
+                          const double eps) {
     double diff = 0.0;
     switch (cvtype) {
+      case correct_num:
+        REP(j, test_x.size()) {
+          diff += abs(svr.func(test_x[j]) - test_y[j]) < 0.1 ? 0 : 1;
+        }
+        break;
       case mean_abs:
         REP(j, test_x.size()) { diff += abs(svr.func(test_x[j]) - test_y[j]); }
         break;
@@ -188,7 +203,7 @@ class SVR : public SVM {
       }
       SVR svr(train_x, train_y, kernel, C, eps);
       if (not svr.get_is_valid()) continue;
-      diff_res += calc_diff(test_x, test_y, svr, cvtype);
+      diff_res += calc_diff(test_x, test_y, svr, cvtype, eps);
       successed_sum++;
     }
     if (successed_sum == 0) return 1e20;
@@ -213,21 +228,24 @@ class SVR : public SVM {
         return center + offset * (-1.0 + 2.0 * ((double)index / div));
       };
       // TODO: 並列化高速化
+      vector<thread> threads;
       vector<vector<FindPos>> finds(div + 1);
       REP(c, finds.size()) {
         finds[c] = vector<FindPos>(div + 1);
-        REP(p, finds[c].size()) {
-          FindPos pos;
-          pos.c_center = get_center(basepos.c_center, basepos.c_offset, c);
-          pos.p_center = get_center(basepos.p_center, basepos.p_offset, p);
-          Kernel kernel({kind, {pow(2.0, pos.p_center)}});
-          pos.error =
-              SVR::cross_validation(x, y, kernel, pow(2.0, pos.c_center), eps,
-                                    cvtype, cross_validate_div);
-          // pos.print();
-          finds[c][p] = pos;
-        }
+        threads.push_back(thread([&, c]() {
+          REP(p, finds[c].size()) {
+            FindPos pos;
+            pos.c_center = get_center(basepos.c_center, basepos.c_offset, c);
+            pos.p_center = get_center(basepos.p_center, basepos.p_offset, p);
+            Kernel kernel({kind, {pow(2.0, pos.p_center)}});
+            pos.error =
+                SVR::cross_validation(x, y, kernel, pow(2.0, pos.c_center), eps,
+                                      cvtype, cross_validate_div);
+            finds[c][p] = pos;
+          }
+        }));
       }
+      for (auto &th : threads) th.join();
       FindPos respos = basepos;
       REP(c, finds.size()) {
         REP(p, finds[c].size()) {
@@ -244,11 +262,10 @@ class SVR : public SVM {
     assert(cross_validate_div < x.size());
     auto range = Kernel::get_default_range(kind);
     FindPos nowpos = {5, 10, range.center, range.offset, 1e20};
-    REP(i, 5) {  //最大5回まで深く探索
-      FindPos found = find_deep(nowpos);
+    REP(i, 3) {  // 実は3回くらいでいいのでは
+      FindPos found = find_deep(nowpos, 10 * sqrt(2.0 - (double)i / 3.0));
       cout << "FOUND :";
       found.print();
-      // TODO: 更新尺度?? 比のほうがよい？ 0.1 => 0.01 OK / 0.1 => 0.13
       if (abs(found.error) >= abs(nowpos.error)) break;
       nowpos = found;
     }
@@ -298,23 +315,28 @@ int main(int argc, char *const argv[]) {
   vector<double> y;
   Kernel::read_data(argv[1], x, y);
   Kernel::normalize(x);
-
-  if (parsed.count(CROSS)) {  // 交差検定dd
-  } else {  // 普通にパラメータを指定して(プロット/テストする)
-    auto kernel = Kernel(kernel_kind, {atof(parsed[PARAM].c_str())});
-    auto eps = 1e-1;
-    SVR svr(x, y, kernel, 1000, eps);
+  // TODO: C,epsのコマンドライン
+  auto eps = 1e-3;
+  if (parsed.count(CROSS)) {  // 交差検定
+    auto pos = SVR::search_parameter(x, y, kernel_kind, eps, SVR::coefficient,
+                                     atoi(parsed[CROSS].c_str()));
+    auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
+    SVR svr(x, y, kernel2, pow(2.0, pos.c_center), eps);
     if (parsed.count(PLOT)) {
       svr.plot_data(x, y, parsed[PLOT]);
     } else {
-      auto pos =
-          SVR::search_parameter(x, y, kernel_kind, eps, SVR::mean_abs, 8);
       cout << "RESULT\n";
       pos.print();
-      auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
-      SVR svr2(x, y, kernel2, pow(2.0, pos.c_center), eps);
       svr.test(x, y);
-      svr2.test(x, y);
+    }
+  } else {  // 普通にパラメータを指定して(プロット/テストする)
+    auto C = 1000;
+    auto kernel = Kernel(kernel_kind, {atof(parsed[PARAM].c_str())});
+    SVR svr(x, y, kernel, C, eps);
+    if (parsed.count(PLOT)) {
+      svr.plot_data(x, y, parsed[PLOT]);
+    } else {
+      svr.test(x, y);
     }
     return 0;
   }
