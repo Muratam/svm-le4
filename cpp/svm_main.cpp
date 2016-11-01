@@ -1,4 +1,5 @@
 #include "svm.h"
+using namespace std;
 
 auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
   unordered_map<string, string> res;

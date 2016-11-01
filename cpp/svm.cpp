@@ -1,5 +1,8 @@
 #include "svm.h"
 #include "kernel.h"
+#include "quadProg/QuadProg++.hh"
+
+using namespace std;
 
 SVM::SVM(Kernel kernel) : kernel(kernel) {}
 
