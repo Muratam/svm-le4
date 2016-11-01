@@ -1,4 +1,20 @@
-svr: cpp/main.cpp cpp/quadProg/QuadProg++.cc cpp/svr.h cpp/svr.cpp cpp/svm.h cpp/svm.h cpp/svm.h cpp/svm.cpp cpp/kernel.cpp cpp/kernel.h
-	g++ -O3 --std=c++14 -o svr cpp/main.cpp cpp/quadProg/QuadProg++.cc cpp/svr.cpp cpp/svm.cpp cpp/kernel.cpp
-svm: cpp/svm_main.cpp cpp/quadProg/QuadProg++.cc cpp/svm.h cpp/svm.cpp cpp/kernel.cpp cpp/kernel.h
-	g++ -O3 --std=c++14 -o svm cpp/svm_main.cpp cpp/svm.cpp cpp/quadProg/QuadProg++.cc cpp/kernel.cpp
+CXX := g++
+CXXFLAGS := -O3 --std=c++14
+
+QP = cpp/quadProg/QuadProg++.cc
+
+SVRDEPENDS := $(shell echo cpp/{main,svr,svm,kernel}.cpp) $(QP)
+SVMDEPENDS := $(shell echo cpp/{svm_main,svm,kernel}.cpp) $(QP)
+
+.PHONY: svr svm clean all
+all: svr svm
+
+clean:
+	rm svr svm
+
+svr: $(SVRDEPENDS)
+	$(CXX) $(CXXFLAGS) -o svr $(SVRDEPENDS)
+
+svm: $(SVMDEPENDS)
+	$(CXX) $(CXXFLAGS) -o svm $(SVMDEPENDS)
+
