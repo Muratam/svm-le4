@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with EasyLocalpp. If not, see <http://www.gnu.org/licenses/>.
 
-#if !defined(_ARRAY_HH)
+#ifndef _ARRAY_HH
 #define _ARRAY_HH
 
 #include <cmath>

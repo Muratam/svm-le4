@@ -1,5 +1,4 @@
 #pragma once
-#include "quadProg/QuadProg++.hh"
 #include "util.h"
 
 class Kernel {

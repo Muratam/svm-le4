@@ -1,5 +1,6 @@
 #include "svr.h"
 #include "quadProg/QuadProg++.hh"
+
 using namespace std;
 
 double SVR::kernel_dot_to_w(const vector<double> &x) const {
@@ -12,7 +13,7 @@ double SVR::kernel_dot_to_w(const vector<double> &x) const {
 
 SVR::SVR(const vector<vector<double>> &x, const vector<double> &y,
          Kernel kernel, double C, double eps)
-    : C(C), eps(eps), SVM(kernel) {
+    : C(C), eps(eps), kernel(kernel) {
   solve(x, y);
 }
 

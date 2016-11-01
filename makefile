@@ -1,7 +1,7 @@
 CXX := g++
 CXXFLAGS := -O3 --std=c++14
 
-QP = cpp/quadProg/QuadProg++.cc
+QP = cpp/quadProg/QuadProg++.cc cpp/quadProg/Array.cc
 
 SVRDEPENDS := $(shell echo cpp/{main,svr,svm,kernel}.cpp) $(QP)
 SVMDEPENDS := $(shell echo cpp/{svm_main,svm,kernel}.cpp) $(QP)

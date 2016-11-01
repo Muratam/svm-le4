@@ -1,6 +1,7 @@
 #pragma once
-#include "svm.h"
-using namespace std;
+#include "kernel.h"
+#include "plotable.h"
+#include "util.h"
 
 // b[] = a[] - aster[]
 // c[] = a[] + aster[]
@@ -18,12 +19,14 @@ struct FindPos {  // p means kernel paraeter
   }
 };
 
-class SVR : public SVM {
+class SVR : public Plotable {
  private:
   const double eps;
   const double C;
   bool is_valid = false;
   vector<Ok_b_x> oks;
+  double theta;
+  const Kernel kernel;
 
  public:
   enum cross_validation_type {
@@ -34,7 +37,7 @@ class SVR : public SVM {
   };
 
  private:
-  virtual double kernel_dot_to_w(const vector<double> &x) const override;
+  virtual double kernel_dot_to_w(const vector<double> &x) const;
 
  public:
   bool get_is_valid() { return is_valid; }
@@ -42,13 +45,11 @@ class SVR : public SVM {
   SVR(const vector<vector<double>> &x, const vector<double> &y, Kernel kernel,
       double C = 1000, double eps = 1e-2);
 
-  virtual void solve(const vector<vector<double>> &x,
-                     const vector<double> &y) override;
+  void solve(const vector<vector<double>> &x, const vector<double> &y);
 
   virtual double func(const vector<double> &x) const override;
 
-  virtual void test(const vector<vector<double>> &x,
-                    const vector<double> &y) const override;
+  void test(const vector<vector<double>> &x, const vector<double> &y) const;
 
   static double calc_diff(const vector<vector<double>> &test_x,
                           const vector<double> &test_y, const SVR &svr,

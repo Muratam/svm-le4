@@ -1,5 +1,8 @@
 #pragma once
 #include "kernel.h"
+#include "plotable.h"
+#include "util.h"
+
 struct Center_Percent {
   double center, percent;
 };
@@ -7,22 +10,19 @@ struct Ok_ay_x {
   const double ay;
   const vector<double> x;
 };
-class SVM {
+class SVM : public Plotable {
  protected:
   vector<Ok_ay_x> oks;
   double theta;
   const Kernel kernel;
-  virtual double kernel_dot_to_w(const vector<double> &x) const;
+  double kernel_dot_to_w(const vector<double> &x) const;
 
  public:
   SVM(Kernel kernel);
   SVM(const vector<vector<double>> &x, const vector<double> &y, Kernel kernel);
-  virtual void solve(const vector<vector<double>> &x, const vector<double> &y);
-  virtual double func(const vector<double> &x) const;
-  virtual void test(const vector<vector<double>> &x,
-                    const vector<double> &y) const;
-  void plot_data(const vector<vector<double>> &x, const vector<double> &y,
-                 const string filename, const int plot_grid = 100);
+  void solve(const vector<vector<double>> &x, const vector<double> &y);
+  virtual double func(const vector<double> &x) const override;
+  void test(const vector<vector<double>> &x, const vector<double> &y) const;
 
  public:
   static double cross_validation(const vector<vector<double>> &x,

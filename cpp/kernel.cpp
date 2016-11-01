@@ -1,5 +1,4 @@
 #include "kernel.h"
-#include <fstream>
 
 using namespace std;
 double Kernel::kernel(const vector<double> &x, const vector<double> &y) const {
