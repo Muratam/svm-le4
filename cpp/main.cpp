@@ -1,27 +1,19 @@
 #include "svr.h"
+#include "util.h"
 using namespace std;
 
-auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
-  unordered_map<string, string> res;
-  for (auto kv : kvs) {
-    auto seekedarg = ALL(find, args, get<0>(kv));
-    if (seekedarg != args.end()) {
-      res[get<0>(kv)] =
-          seekedarg + 1 == args.end() ? get<1>(kv) : *(seekedarg + 1);
-    }
-  }
-  return res;
-}
 int print_usage(char *const thisName) {
   cout << "Usage :" << endl
        << "    " << thisName
-       << " <dataname> [gauss| polynomial | linear] [--cross <div_num>]\n    "
-          "        [--param <param>] [--plot <filename>.dat]\n"
+       << " <dataname> [gauss| polynomial | linear] [--cross <div_num>]\n"
+          "            [--param <param>] [--plot <filename>.dat]\n"
+          "            [--C <param_C>] [--eps <param_eps>]"
        << "Options :\n"
-       //<< "    --cross      crossvalidation :: div_num\n"
+       << "    --cross      crossvalidation :: div_num\n"
        << "    --plot       plot function :: file name\n"
-       // << "    --plot-all   plot all of progress :: direcoty name\n"
        << "    --param      defined parameter :: parameter\n"
+       << "    --C          the parameter C\n"
+       << "    --eps        the parameter eps\n"
        << endl;
   return -1;
 }
@@ -33,10 +25,12 @@ int main(int argc, char *const argv[]) {
   vector<string> args;
   FOR(i, 1, argc) args.push_back(argv[i]);
   const string CROSS = "--cross", PLOT = "--plot", PARAM = "--param",
-               PLOT_ALL = "--plot-all";
-  auto parsed = parse_args(
-      args,
-      {{CROSS, "10"}, {PLOT, "result.dat"}, {PARAM, "10"}, {PLOT_ALL, "data"}});
+               PARAM_C = "--C", EPS = "--EPS";
+  auto parsed = parse_args(args, {{CROSS, "10"},
+                                  {PLOT, "result.dat"},
+                                  {PARAM, "10"},
+                                  {PARAM_C, "1000"},
+                                  {EPS, "0.01"}});
 
   const auto kernel_kind = Kernel::strings2kernel_kind(args);
   vector<vector<double>> x;
@@ -44,7 +38,7 @@ int main(int argc, char *const argv[]) {
   Kernel::read_data(argv[1], x, y);
   Kernel::normalize(x);
   // TODO: C,epsのコマンドライン
-  auto eps = 1e-2;
+  double eps = atof(parsed[EPS].c_str());
   if (parsed.count(CROSS)) {  // 交差検定
     auto pos = SVR::search_parameter(x, y, kernel_kind, eps, SVR::mean_square,
                                      atoi(parsed[CROSS].c_str()));
@@ -58,7 +52,7 @@ int main(int argc, char *const argv[]) {
       svr.test(x, y);
     }
   } else {  // 普通にパラメータを指定して(プロット/テストする)
-    auto C = 1000;
+    double C = atof(parsed[PARAM_C].c_str());
     auto kernel = Kernel(kernel_kind, {atof(parsed[PARAM].c_str())});
     SVR svr(x, y, kernel, C, eps);
     if (parsed.count(PLOT)) {

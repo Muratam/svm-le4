@@ -1,17 +1,6 @@
 #include "svm.h"
 using namespace std;
 
-auto parse_args(vector<string> args, vector<pair<string, string>> kvs) {
-  unordered_map<string, string> res;
-  for (auto kv : kvs) {
-    auto seekedarg = ALL(find, args, get<0>(kv));
-    if (seekedarg != args.end()) {
-      res[get<0>(kv)] =
-          seekedarg + 1 == args.end() ? get<1>(kv) : *(seekedarg + 1);
-    }
-  }
-  return res;
-}
 int print_usage(char *const thisName) {
   cout << "Usage :" << endl
        << "    " << thisName

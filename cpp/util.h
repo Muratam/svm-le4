@@ -19,3 +19,6 @@ using std::string;
 using std::cout;
 using std::endl;
 using std::function;
+
+unordered_map<string, string> parse_args(vector<string> args,
+                                         vector<std::pair<string, string>> kvs);
