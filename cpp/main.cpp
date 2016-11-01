@@ -316,9 +316,9 @@ int main(int argc, char *const argv[]) {
   Kernel::read_data(argv[1], x, y);
   Kernel::normalize(x);
   // TODO: C,epsのコマンドライン
-  auto eps = 1e-3;
+  auto eps = 1e-2;
   if (parsed.count(CROSS)) {  // 交差検定
-    auto pos = SVR::search_parameter(x, y, kernel_kind, eps, SVR::coefficient,
+    auto pos = SVR::search_parameter(x, y, kernel_kind, eps, SVR::mean_square,
                                      atoi(parsed[CROSS].c_str()));
     auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
     SVR svr(x, y, kernel2, pow(2.0, pos.c_center), eps);
