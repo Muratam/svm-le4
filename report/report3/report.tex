@@ -147,6 +147,7 @@ search\_parameter関数についてもSVMのときのものとほとんど同じ
 \section{考察}
 以下では実際に上記のプログラムを用いて、
 予測精度がカーネル及びパラメータによりどのように変化するかの考察を行う。
+以下では、特に断りが無い限りeps=0.01としている。
 \subsection{探索過程の可視化}
 誤差の総和が少ないほどよりよいものとして探索する。
 最初は荒く、徐々に狭くして探索している。
@@ -196,6 +197,60 @@ search\_parameter関数についてもSVMのときのものとほとんど同じ
 同じ時間のデータごとにその中央値のデータを代表点として取り出し、
 サンプルデータを96個として予測するものとした。
 その処理に関してはpy3/step3\_csv2dat.pyにて実装しているのでそれを参照のこと。
+また、オークションのサンプルデータは5つ与えられていたが、
+今回の考察ではid0002.csv を使用することにした。
+\begin{figure}[htbp]
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/id0001.png}
+  \subcaption{id0001}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/id0002.png}
+  \subcaption{id0002}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/id0003.png}
+  \subcaption{id0003}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/id0004.png}
+  \subcaption{id0004}
+ \end{minipage}
+ \caption{ 与えられたオークションデータ}
+\end{figure}
+\newpage
+\subsection{ id0002のオークションデータのガウスカーネルでの予測について }
+実際にパラメータを変化させてどのように予測精度が変化するかを示す。
+以下の図で示すように、Cが大きいほど教師データに依存し、
+Cが小さいほどモデルは単純になることが分かる。
+また、ガウスカーネルの場合、σが大きいほど緩やかに近似し、
+σが小さいほど激しく近似することが分かる。
+
+\begin{figure}[htbp]
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02gauss_sq.png}
+  \subcaption{交差検定による結果 $c=81.4532,p0.0207861$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02gauss100c.png}
+  \subcaption{Cを100倍してみたもの $c=8145.32,p0.0207861$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02gauss001c.png}
+  \subcaption{Cを0.01倍してみたもの $c=0.814532,p0.0207861$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02gauss10p.png}
+  \subcaption{σを10倍してみたもの $c=81.4532,p0.207861$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02gauss01p.png}
+  \subcaption{σを0.1倍してみたもの $c=81.4532,p0.00207861$}
+ \end{minipage}
+ \caption{ id0002のガウスカーネルでの変化について}
+\end{figure}
+
+
 
 
 \end{document}
