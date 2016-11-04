@@ -61,10 +61,7 @@ def plot1d(x, y, base_x, base_y, save_file_name=None):
     #f = interp1d(x, y, kind="cubic")
     plt.plot(x, y)
     plt.plot(base_x, base_y)
-    if save_file_name:
-        plt.savefig(save_file_name)
-    else:
-        plt.show()
+    plt.show()
 
 
 def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
@@ -75,10 +72,7 @@ def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
     s = np.r_[[10] * len(y), [40] * len(base_y)]
     Axes3D(plt.figure()).scatter3D(X1, X2, Y,
                                    marker='x', c='b', s=s, alpha=0.4)
-    if save_file_name:
-        plt.savefig(save_file_name)
-    else:
-        plt.show()
+    plt.show()
 
 
 if __name__ == "__main__":

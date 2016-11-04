@@ -32,7 +32,7 @@ class Plotable {
           }
         }
       } else {
-        cout << "grid plot only 1 or 2 dimension" << endl;
+        cout << "grid plot can only 1 or 2 dimension" << endl;
         return;
       }
     } else {  // x,yを使ってプロットする
