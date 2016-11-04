@@ -219,12 +219,14 @@ search\_parameter関数についてもSVMのときのものとほとんど同じ
  \caption{ 与えられたオークションデータ}
 \end{figure}
 \newpage
-\subsection{ id0002のオークションデータのガウスカーネルでの予測について }
+\subsection{ id0002のオークションデータの予測について }
 実際にパラメータを変化させてどのように予測精度が変化するかを示す。
 以下の図で示すように、Cが大きいほど教師データに依存し、
 Cが小さいほどモデルは単純になることが分かる。
 また、ガウスカーネルの場合、σが大きいほど緩やかに近似し、
 σが小さいほど激しく近似することが分かる。
+また、多項式カーネルの近似がどうみても適当すぎるように見える（予測精度が悪く見える）
+ことについては、原因をよく考える必要があると思われる。
 
 \begin{figure}[htbp]
  \begin{minipage}[b]{0.5\hsize}
@@ -250,6 +252,21 @@ Cが小さいほどモデルは単純になることが分かる。
  \caption{ id0002のガウスカーネルでの変化について}
 \end{figure}
 
+\begin{figure}[htbp]
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02polym_sq.png}
+  \subcaption{交差検定による結果 $c=731.283,p10.6301$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02polym100c.png}
+  \subcaption{Cを100倍してみたもの $c=73128.3,p10.6301$}
+ \end{minipage}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/02polym001c.png}
+  \subcaption{Cを0.01倍してみたもの $c=7.31283,p10.6301$}
+ \end{minipage}
+ \caption{ id0002の多項式カーネルでの変化について}
+\end{figure}
 
 
 
