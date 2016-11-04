@@ -112,8 +112,24 @@ void SVR::solve(const vector<vector<double>> &x, const vector<double> &y) {
 }
 
 double SVR::func(const vector<double> &x) const {
-  if (not this->is_valid) return 1e20;
+  if (not this->is_valid) return FindPos::max_error;
   return kernel_dot_to_w(x) - theta;
+}
+void SVR::print_func() const {
+  if (not this->is_valid) {
+    cout << "invalid function...\n";
+    return;
+  }
+  cout << "K(x,y) : " << this->kernel.to_string() << "\nf(X) = " << endl;
+  cout << setprecision(4);
+  for (auto co : this->oks) {
+    cout << (co.b < 0 ? " -" : " +") << abs(co.b);
+    cout << "*K(X,[";
+    REP(i, co.x.size()) cout << co.x[i] << (i == co.x.size() - 1 ? "" : ",");
+    cout << "])\n";
+  }
+  cout << " +" << -theta << endl;
+  cout << resetiosflags(ios_base::floatfield);
 }
 
 void SVR::test(const vector<vector<double>> &x, const vector<double> &y) const {
@@ -125,42 +141,50 @@ void SVR::test(const vector<vector<double>> &x, const vector<double> &y) const {
   cout << sum << " / " << y.size() << endl;
 }
 
+SVR::cross_validation_type SVR::get_cross_validation(vector<string> args) {
+  unordered_map<string, cross_validation_type> crosses = {
+      {"mean_abs", mean_abs},
+      {"mean_square", mean_square},
+      {"coefficient", coefficient},
+      {"correct_num", correct_num}};
+  for (auto arg : args) {
+    if (crosses.count(arg)) return crosses[arg];
+  }
+  return mean_square;
+}
+
 double SVR::calc_diff(const vector<vector<double>> &test_x,
                       const vector<double> &test_y, const SVR &svr,
                       const cross_validation_type &cvtype, const double eps) {
   double diff = 0.0;
+  auto n = test_x.size();
   switch (cvtype) {
     case correct_num:
-      REP(j, test_x.size()) {
-        diff += abs(svr.func(test_x[j]) - test_y[j]) < 0.1 ? 0 : 1;
-      }
-      break;
+      REP(i, n) { diff += abs(svr.func(test_x[i]) - test_y[i]) < 0.1 ? 0 : 1; }
+      return diff / n;
     case mean_abs:
-      REP(j, test_x.size()) { diff += abs(svr.func(test_x[j]) - test_y[j]); }
-      break;
+      REP(i, n) { diff += abs(svr.func(test_x[i]) - test_y[i]); }
+      return diff / n;
     case mean_square:
-      REP(j, test_x.size()) {
-        double n_diff = svr.func(test_x[j]) - test_y[j];
+      REP(i, n) {
+        double n_diff = svr.func(test_x[i]) - test_y[i];
         diff += n_diff * n_diff;
       }
-      break;
+      return diff / n;
     case coefficient:
       double d1 = 0.0, d2 = 0.0;
-      double mean_test_y = 0.0;
-      REP(j, test_x.size()) {
-        double n_diff = svr.func(test_x[j]) - test_y[j];
+      REP(i, n) {
+        double n_diff = svr.func(test_x[i]) - test_y[i];
         d1 += n_diff * n_diff;
       }
-      REP(j, test_x.size()) mean_test_y += test_y[j];
-      mean_test_y /= test_y.size();
-      REP(j, test_x.size()) {
-        double n_diff = mean_test_y - test_y[j];
+      auto mean_test_y = ALL(accumulate, test_y, 0.0) / n;
+      REP(i, n) {
+        double n_diff = mean_test_y - test_y[i];
         d2 += n_diff * n_diff;
       }
-      diff += (1 - d1 / d2);
-      break;
+      return 1 - d1 / d2;
   }
-  return diff;
+  assert(false);
 }
 
 double SVR::cross_validation(const vector<vector<double>> &x,
@@ -189,14 +213,14 @@ double SVR::cross_validation(const vector<vector<double>> &x,
     diff_res += calc_diff(test_x, test_y, svr, cvtype, eps);
     successed_sum++;
   }
-  if (successed_sum == 0) return 1e20;
+  if (successed_sum != div) return FindPos::max_error;
   return diff_res / n * div / successed_sum;
 }
 FindPos SVR::search_parameter(const vector<vector<double>> &x,
                               const vector<double> &y, const Kernel::kind kind,
                               const double eps,
                               const cross_validation_type cvtype,
-                              int cross_validate_div) {
+                              int cross_validate_div, bool plot) {
   auto find_deep = [&](const FindPos basepos, const int div = 10) {
     auto get_center = [div](double center, double offset, int index) {
       return center + offset * (-1.0 + 2.0 * ((double)index / div));
@@ -226,20 +250,29 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
         if (finds[c][p].error < respos.error) {
           respos = finds[c][p];
         }
+        if (plot) {
+          auto current = finds[c][p];
+          if (current.error < FindPos::max_error / 2) {
+            cout << current.c_center << " " << current.p_center << " "
+                 << current.error << endl;
+          }
+        }
       }
     }
     respos.c_offset = basepos.c_offset / 10;
     respos.p_offset = basepos.p_offset / 10;
+    if (not plot) {
+      cout << "FOUND :";
+      respos.print();
+    }
     return respos;
   };
   if (cross_validate_div == 0) cross_validate_div = 10;
   assert(cross_validate_div < x.size());
   auto range = Kernel::get_default_range(kind);
-  FindPos nowpos = {5, 10, range.center, range.offset, 1e20};
+  FindPos nowpos = {3, 6, range.center, range.offset, FindPos::max_error};
   REP(i, 3) {  // 実は3回くらいでいいのでは
-    FindPos found = find_deep(nowpos, 10 * sqrt(2.0 - (double)i / 3.0));
-    cout << "FOUND :";
-    found.print();
+    FindPos found = find_deep(nowpos, 10 * sqrt(3 - i));
     if (abs(found.error) >= abs(nowpos.error)) break;
     nowpos = found;
   }

@@ -13,15 +13,23 @@ class Plotable {
     ofile.open(filename, std::ios::out);
 
     bool print_grid = plot_grid > 0;
-    if (print_grid) {
-      REP(i, plot_grid) {
-        REP(j, plot_grid) {
-          auto i_p = (double)i / plot_grid, j_p = (double)j / plot_grid;
-          ofile << i_p << " " << j_p << " ";
-          ofile << func({i_p, j_p}) << endl;
+    if (print_grid) {  // グリッドでプロットする
+      if (x.size() > 0 and x[0].size() == 1) {  // 一次元の場合
+        auto linear_grid = plot_grid * plot_grid;
+        REP(i, linear_grid) {
+          auto i_p = (double)i / linear_grid;
+          ofile << i_p << " " << func({i_p}) << endl;
+        }
+      } else {  // デフォルトで二次元
+        REP(i, plot_grid) {
+          REP(j, plot_grid) {
+            auto i_p = (double)i / plot_grid, j_p = (double)j / plot_grid;
+            ofile << i_p << " " << j_p << " ";
+            ofile << func({i_p, j_p}) << endl;
+          }
         }
       }
-    } else {
+    } else {  // x,yを使ってプロットする
       REP(i, x.size()) {
         REP(j, x[0].size()) { ofile << x[i][j] << " "; }
         ofile << func(x[i]) << endl;

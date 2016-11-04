@@ -13,10 +13,12 @@ struct FindPos {  // p means kernel paraeter
   double c_center, c_offset;
   double p_center, p_offset;
   double error;
-  void print() {
-    std::cout << "c:" << c_center << " , p:" << p_center << " | " << error
-              << std::endl;
+  void print() const {
+    std::cout << "c:2**" << c_center << " , p:2**" << p_center << " | " << error
+              << "  (c:" << std::pow(2.0, c_center)
+              << " , p:" << std::pow(2.0, p_center) << ")\n";
   }
+  static constexpr double max_error = 1e20;
 };
 
 class SVR : public Plotable {
@@ -49,7 +51,11 @@ class SVR : public Plotable {
 
   virtual double func(const vector<double> &x) const override;
 
+  void print_func() const;
+
   void test(const vector<vector<double>> &x, const vector<double> &y) const;
+
+  static cross_validation_type get_cross_validation(vector<string> args);
 
   static double calc_diff(const vector<vector<double>> &test_x,
                           const vector<double> &test_y, const SVR &svr,
@@ -66,5 +72,6 @@ class SVR : public Plotable {
                                   const Kernel::kind kind,
                                   const double eps = 1e-2,
                                   const cross_validation_type cvtype = mean_abs,
-                                  int cross_validate_div = 8);
+                                  int cross_validate_div = 8,
+                                  bool plot = false);
 };

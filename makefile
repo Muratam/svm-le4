@@ -1,4 +1,4 @@
-CXX := g++
+CXX := clang++
 CXXFLAGS := -O3 --std=c++14
 
 QP = cpp/quadProg/QuadProg++.cc cpp/quadProg/Array.cc

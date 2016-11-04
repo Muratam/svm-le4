@@ -13,6 +13,17 @@ double Kernel::kernel(const vector<double> &x, const vector<double> &y) const {
       return exp(-0.5 * norm / param[0] / param[0]);
   }
 }
+string Kernel::to_string() const {
+  switch (this->m_kind) {
+    case linear:
+      return "linear";
+    case polynomial:
+      return "polinomial";
+    case gauss:
+      return "gauss";
+  }
+}
+
 Kernel::search_range Kernel::get_default_range(const Kernel::kind k_type) {
   switch (k_type) {
     case linear:

@@ -5,8 +5,9 @@ using namespace std;
 int print_usage(char *const thisName) {
   cout << "Usage :\n"
        << "  " << thisName
-       << " <dataname> [gauss| polynomial | linear] [--cross <div_num>] "
-          "[--param <param>] [--plot <filename>.dat] [--C <param_C>] [--eps "
+       << " <dataname> [gauss | polynomial | linear] [--cross <div_num>] "
+          "[mean_abs | mean_square | corrent_num | coefficient] [--param "
+          "<param>] [--plot <filename>.dat] [--C <param_C>] [--eps "
           "<param_eps>]\n"
        << R"(Options :
   --cross      crossvalidation :: div_num
@@ -23,28 +24,29 @@ int main(int argc, char *const argv[]) {
   }
   vector<string> args;
   FOR(i, 1, argc) args.push_back(argv[i]);
-  const string CROSS = "--cross", PLOT = "--plot", PARAM = "--param",
-               PARAM_C = "--C", EPS = "--EPS";
+  const string CROSS = "--cross", PLOT = "--plot", PARAM = "--p",
+               PARAM_C = "--c", EPS = "--eps";
   auto parsed = parse_args(args, {{CROSS, "10"},
                                   {PLOT, "result.dat"},
                                   {PARAM, ""},
                                   {PARAM_C, ""},
                                   {EPS, ""}});
-
   const auto kernel_kind = Kernel::strings2kernel_kind(args);
+  const auto cv_type = SVR::get_cross_validation(args);
   vector<vector<double>> x;
   vector<double> y;
   Kernel::read_data(argv[1], x, y);
   Kernel::normalize(x);
-  double eps = parsed.count(EPS) ? atof(parsed[EPS].c_str()) : 1e-2;
+  const double eps = parsed.count(EPS) ? atof(parsed[EPS].c_str()) : 1e-2;
   if (parsed.count(CROSS)) {  // 交差検定
-    auto pos = SVR::search_parameter(x, y, kernel_kind, eps, SVR::coefficient,
-                                     atoi(parsed[CROSS].c_str()));
-    auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
-    SVR svr(x, y, kernel2, pow(2.0, pos.c_center), eps);
     if (parsed.count(PLOT)) {
-      svr.plot_data(x, y, parsed[PLOT]);
+      SVR::search_parameter(x, y, kernel_kind, eps, cv_type,
+                            atoi(parsed[CROSS].c_str()), true);
     } else {
+      const auto pos = SVR::search_parameter(
+          x, y, kernel_kind, eps, cv_type, atoi(parsed[CROSS].c_str()), false);
+      const auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
+      SVR svr(x, y, kernel2, pow(2.0, pos.c_center), eps);
       cout << "RESULT\n";
       pos.print();
       svr.test(x, y);
@@ -56,6 +58,7 @@ int main(int argc, char *const argv[]) {
     if (parsed.count(PLOT)) {
       svr.plot_data(x, y, parsed[PLOT]);
     } else {
+      svr.print_func();
       svr.test(x, y);
     }
     return 0;

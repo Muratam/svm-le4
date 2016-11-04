@@ -15,9 +15,9 @@ class Kernel {
       : m_kind(k_type), param(param) {}
 
   double kernel(const vector<double> &x, const vector<double> &y) const;
+  string to_string() const;
 
   static search_range get_default_range(const Kernel::kind k_type);
-
   static Kernel::kind strings2kernel_kind(vector<string> args);
 
   static void read_data(string filename, vector<vector<double>> &x,

@@ -7,11 +7,13 @@ from mpl_toolkits.mplot3d import Axes3D
 
 __doc__ = """{f}
 Usage:
-    {f} <filename> [<basefilename>] [--save <savefilename>] [--3d]
+    {f} <filename> [<basefilename>] [--save <savefilename>] [--3d | --2d | --1d]
     {f} (-h | --help)
 Options:
     --save      save output as png file
-    --3d        plot 3d
+    --3d        plot 3d data
+    --2d        plot 2d data
+    --1d        plot 1d data
     -h --help   show this help.
 """.format(f=__file__)
 
@@ -26,7 +28,7 @@ def load_spaced_data(lines):
     return np.array(x), np.array(y)
 
 
-def plot(x, y, base_x, base_y, save_file_name=None):
+def plot2d(x, y, base_x, base_y, save_file_name=None):
     def separate(xs, ys):
         x1p = xs[ys[:] > 0, 0]
         x2p = xs[ys[:] > 0, 1]
@@ -53,6 +55,15 @@ def plot(x, y, base_x, base_y, save_file_name=None):
         plt.show()
 
 
+def plot1d(x, y, base_x, base_y, save_file_name=None):
+    x = [_[0] for _ in x]
+    base_x = [_[0] for _ in base_x]
+    #f = interp1d(x, y, kind="cubic")
+    plt.plot(x, y)
+    plt.plot(base_x, base_y)
+    plt.show()
+
+
 def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
     # 散布図以外は mesh 変換処理を書く必要があるため保留。
     X1 = np.r_[x[:, 0], base_x[:, 0]]
@@ -66,16 +77,18 @@ def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
 
 if __name__ == "__main__":
     args = docopt(__doc__)
+    with open(args["<filename>"], "r") as f:
+        x, y = load_spaced_data(f.readlines())
     if args["<basefilename>"]:
         with open(args["<basefilename>"], "r") as f:
             base_x, base_y = load_spaced_data(f.readlines())
         minval, maxval = base_x.min(0), base_x.max(0)
         base_x = (base_x - minval) / (maxval - minval)  # normalize
     else:
-        base_x, base_y = [], []
-    with open(args["<filename>"], "r") as f:
-        x, y = load_spaced_data(f.readlines())
+        base_x, base_y = np.array([x[0]]), np.array([y[0]])
     if args["--3d"]:
         plot3d(x, y, base_x, base_y, args["<savefilename>"])
+    elif args["--1d"]:
+        plot1d(x, y, base_x, base_y, args["<savefilename>"])
     else:
-        plot(x, y, base_x, base_y, args["<savefilename>"])
+        plot2d(x, y, base_x, base_y, args["<savefilename>"])
