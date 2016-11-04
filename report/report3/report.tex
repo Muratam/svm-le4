@@ -147,76 +147,55 @@ search\_parameter関数についてもSVMのときのものとほとんど同じ
 \section{考察}
 以下では実際に上記のプログラムを用いて、
 予測精度がカーネル及びパラメータによりどのように変化するかの考察を行う。
-\subsection{ガウスカーネル}
-% sample20.dat を用いて C,P
-%
-%
-
-\if0
-\subsection{ガウスカーネル}
-ガウスカーネルは、パラメータ$\sigma$ に依存して、
-$K(x_k,x_l) = exp(-||x_k-x_l||^2 / 2\sigma^2) $ と書ける。
-下図のように、$\sigma$の値に応じて、教師の点の周りにのみ分類されやすくなるかどうかが変わる。
-そういうカーネルなので、線形分離が可能な集合に対しては、本質的に弱点があるように思われる。
-
+\subsection{探索過程の可視化}
+誤差の総和が少ないほどよりよいものとして探索する。
+最初は荒く、徐々に狭くして探索している。
+サンプルデータとして、二次元データであるsample20.datを用いた。
 \begin{figure}[htbp]
  \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/gauss_linears/1.png}
-  \subcaption{精度67\% , $\sigma = 2^{-4.6}$}
+  \includegraphics[scale=0.4]{./images/gauss_cross_sq.png}
+  \subcaption{平均二乗誤差 ,探索解 $c=6.4663,p=1.72429 $}
  \end{minipage}
  \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/gauss_linears/2.png}
-  \subcaption{精度99\% , $\sigma = 2^{-2.5}$}
- \end{minipage}
- \caption{線形分離可能習合のガウスカーネルの識別器}
-\end{figure}
-
-\begin{figure}[htbp]
- \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/gauss_te/1.png}
-  \subcaption{精度73.5\% , $\sigma = 2^{-6}$}
+  \includegraphics[scale=0.4]{./images/gauss_corss_abs.png}
+  \subcaption{平均絶対誤差 ,探索解 $c=186.412,p=2.36526$}
  \end{minipage}
  \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/gauss_te/4.png}
-  \subcaption{精度95\% , $\sigma = 2^{-3.858}$}
+  \includegraphics[scale=0.4]{./images/gauss_cross_coef.png}
+  \subcaption{決定係数 ,探索解 $c=512,p=0.1152$}
  \end{minipage}
- \caption{線形分離不可能習合のガウスカーネルの識別器}
+ \caption{ガウスカーネルのパラメータの探索について(グリッドの数値xに対して実際の値は2のx乗を表す)}
 \end{figure}
 
 \newpage
-\subsection{多項式カーネル}
-多項式カーネルは、パラメータ$d$ に依存して、
-$K(x_k,x_l) = (1+(x_k,x_l))^d $ と書ける。
-ガウスカーネルと違って、教師の周りのサンプルをとるというよりは、
-境界をなめらかに近似するように決定するように見える。
-そういうカーネルなので、線形分離についてはサポートベクターも少なくて済み、
-得意に見える。
-
+\subsection{探索結果の可視化}
+二次元データに対してどのように変化するのか容易に確認できるのはPythonの利点である。
 \begin{figure}[htbp]
  \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/polym_linears/1.png}
-  \subcaption{精度96\% , $d = 2^{4.1}$}
+  \includegraphics[scale=0.4]{./images/gauss_sq.png}
+  \subcaption{平均二乗誤差の探索解 $c=6.4663,p=1.72429 $}
  \end{minipage}
  \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/polym_linears/2.png}
-  \subcaption{精度99\% , $d = 2^{0.7}$}
+  \includegraphics[scale=0.4]{./images/gauss_abs.png}
+  \subcaption{平均絶対誤差の探索解 $c=186.412,p=2.36526$}
  \end{minipage}
- \caption{線形分離可能習合の多項式カーネルの識別器}
+ \begin{minipage}[b]{0.5\hsize}
+  \includegraphics[scale=0.4]{./images/gauss_coef.png}
+  \subcaption{決定係数の探索解 $c=512,p=0.1152$}
+ \end{minipage}
+ \caption{ガウスカーネルのパラメータの探索について(グリッドの数値xに対して実際の値は2のx乗を表す)}
 \end{figure}
+\newpage
 
-\begin{figure}[htbp]
- \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/polym_te/1.png}
-  \subcaption{精度62\% , $d = 2^{2.1}$}
- \end{minipage}
- \begin{minipage}[b]{0.5\hsize}
-  \includegraphics[scale=0.4]{./cross_validate_images/polym_te/2.png}
-  \subcaption{精度90\% , $d = 2^{2.5}$}
- \end{minipage}
- \caption{線形分離不可能習合の多項式カーネルの識別器}
-\end{figure}
-\fi
+\subsection{ オークションデータの予測について }
+課題として与えられたオークションデータを用いて、
+カーネルのパラメータとその予測値の変化を可視化する。
+実験のページにあるオークションデータは、単純に処理するとサンプルデータ数が10000になり、
+とてもではないが計算が間に合わないため、データを別の形式に変換する必要がある。
+今回は、日程ごとの差異はなく、時間ごとの差異しかないと仮定して、
+同じ時間のデータごとにその中央値のデータを代表点として取り出し、
+サンプルデータを96個として予測するものとした。
+その処理に関してはpy3/step3\_csv2dat.pyにて実装しているのでそれを参照のこと。
 
-\section{ オークションデータおよびstep3\_csv2dat.py について}
 
 \end{document}
