@@ -2,8 +2,8 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from docopt import docopt
 from mpl_toolkits.mplot3d import Axes3D
+from docopt import docopt
 
 __doc__ = """{f}
 Usage:
@@ -26,6 +26,21 @@ def load_spaced_data(lines):
         y.append(float(xk[-1]))
     assert len(x) == len(y)
     return np.array(x), np.array(y)
+
+
+def read_spaced_data(filename):
+    with open(filename, "r") as f:
+        return load_spaced_data(f.readlines())
+
+
+def write_spaced_data(filename, x, y):
+    assert(len(x) == len(y))
+    n = len(x)
+    with open(filename, "w") as f:
+        for i in range(n):
+            for xi in x[i]:
+                f.write(str(xi) + " ")
+            f.write(str(y[i]) + "\n")
 
 
 def plot2d(x, y, base_x, base_y, save_file_name=None):
@@ -58,7 +73,7 @@ def plot2d(x, y, base_x, base_y, save_file_name=None):
 def plot1d(x, y, base_x, base_y, save_file_name=None):
     x = [_[0] for _ in x]
     base_x = [_[0] for _ in base_x]
-    #f = interp1d(x, y, kind="cubic")
+    # f = interp1d(x, y, kind="cubic")
     plt.plot(x, y)
     plt.plot(base_x, base_y)
     if save_file_name:
@@ -83,18 +98,16 @@ def plot3d(x, y, base_x, base_y, save_file_name=None, plot_type3d="contour"):
 
 if __name__ == "__main__":
     args = docopt(__doc__)
-    with open(args["<filename>"], "r") as f:
-        x, y = load_spaced_data(f.readlines())
+    z, y = read_spaced_data(args["<filename>"])
     if args["<basefilename>"]:
-        with open(args["<basefilename>"], "r") as f:
-            base_x, base_y = load_spaced_data(f.readlines())
+        base_x, base_y = read_spaced_data(args["<basefilename>"])
         minval, maxval = base_x.min(0), base_x.max(0)
         base_x = (base_x - minval) / (maxval - minval)  # normalize
     else:
         base_x, base_y = np.array([x[0]]), np.array([y[0]])
     if args["--3d"]:
         plot3d(x, y, base_x, base_y, args["<savefilename>"])
-    elif args["--1d"]:
-        plot1d(x, y, base_x, base_y, args["<savefilename>"])
-    else:
+    elif args["--2d"]:
         plot2d(x, y, base_x, base_y, args["<savefilename>"])
+    else:
+        plot1d(x, y, base_x, base_y, args["<savefilename>"])
