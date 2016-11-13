@@ -275,7 +275,7 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
     return respos;
   };
   if (cross_validate_div == 0) cross_validate_div = 10;
-  assert(cross_validate_div < x.size());
+  // assert(cross_validate_div < x.size());
   auto range = Kernel::get_default_range(kind);
   FindPos nowpos = {3, 6, range.center, range.offset, FindPos::max_error};
   REP(i, 2) {  // 実は2回くらいでいいのでは
