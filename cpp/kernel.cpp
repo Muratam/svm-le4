@@ -44,6 +44,21 @@ Kernel::kind Kernel::strings2kernel_kind(vector<string> args) {
   }
   return Kernel::gauss;
 }
+void Kernel::read_x(string filename, vector<vector<double>> &x) {
+  ifstream ifile;
+  ifile.open(filename, std::ios::in);
+  // x0 x1 .... xn
+  for (string line; getline(ifile, line) and cin.good();) {
+    auto n = 0.0;
+    auto xi = vector<double>();
+    for (istringstream iss(line); iss.good();) {
+      iss >> n;
+      xi.push_back(n);
+    }
+    x.push_back(xi);
+  }
+  ifile.close();
+}
 void Kernel::read_data(string filename, vector<vector<double>> &x,
                        vector<double> &y) {
   ifstream ifile;

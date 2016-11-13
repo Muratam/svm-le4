@@ -229,7 +229,7 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
                               const vector<double> &y, const Kernel::kind kind,
                               const double eps,
                               const cross_validation_type cvtype,
-                              int cross_validate_div, bool plot) {
+                              int cross_validate_div, bool silent) {
   auto find_deep = [&](const FindPos basepos, const int div = 10) {
     auto get_center = [div](double center, double offset, int index) {
       return center + offset * (-1.0 + 2.0 * ((double)index / div));
@@ -257,7 +257,7 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
         if (finds[c][p].error < respos.error) {
           respos = finds[c][p];
         }
-        if (plot) {
+        if (not silent) {
           auto current = finds[c][p];
           if (current.error < FindPos::max_error / 2) {
             cout << current.c_center << " " << current.p_center << " "
@@ -268,7 +268,7 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
     }
     respos.c_offset = basepos.c_offset / 10;
     respos.p_offset = basepos.p_offset / 10;
-    if (not plot) {
+    if (not silent) {
       cout << "FOUND :";
       respos.print();
     }

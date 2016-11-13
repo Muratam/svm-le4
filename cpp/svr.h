@@ -73,5 +73,5 @@ class SVR : public Plotable {
                                   const double eps = 1e-2,
                                   const cross_validation_type cvtype = mean_abs,
                                   int cross_validate_div = 8,
-                                  bool plot = false);
+                                  bool silent = false);
 };

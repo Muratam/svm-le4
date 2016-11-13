@@ -3,7 +3,7 @@ import sys
 import datetime
 import os
 from pprint import pprint
-from collections import OrderedDict
+from collections import OrderedDict, deque
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -94,7 +94,7 @@ def greedy_agent(auction, buyer):
 
 def saikyou_agent(auction, buyer):
     "未来予知ができるので二日目安い順に全て買える理論上最強のエージェント"
-    prices = auction.get_prices(1)
+    prices = auction.get_prices(1).copy()
     prices.sort()
     for price in prices:
         buyer.buy(price, buyer.left_money)
@@ -106,16 +106,35 @@ def sorena_agent(auction, buyer):
     pre_val = 0
     for price in auction.get_prices(1):
         buyer.buy(price, pre_val)
-        pre_val = price * 1.01
+        pre_val = price * 1.02
     return buyer
 
 
-def svr_agent(prices, max_money):
+def svr_agent(auction, buyer):
     "SVRの予測値そのままでやる単純エージェント"
     # データ可視化の結果、連続する一次元の時間の方が関連性がありそう
     # 毎度過去n=20件のデータの回帰分析から毎度 σ,C を作成して計測
-    # 関係のない過去の σ,Cを使いまわすことはよくないため。
-    pass
+    # 関係のない過去の σ,Cを使いまわしても精度は上がらないため
+    # データ作成 -> SVR -> get
+    # 雑魚 is 543
+    firsts = auction.get_pairs(0)[::-1][:20]
+    xs = deque([[_[0]] for _ in firsts])
+    ys = deque([_[1] for _ in firsts])
+    seconds = auction.get_pairs(1)
+    for t, price in seconds:
+        plotdata.write_spaced_data("a.dat", xs, ys)
+        plotdata.write_spaced_data("b.dat", [[t]], [""])
+        subprocess.call(["./svr", "a.dat", "--cross", "4", "--silent",
+                         "--test", "b.dat", "--plot", "c.dat", "non-normalize"])
+        svr_x, svr_y = plotdata.read_spaced_data("c.dat")
+        predict = svr_y[0] * 1.01
+        buyer.buy(price, predict)
+        xs.append([t])
+        xs.popleft()
+        ys.append(price)
+        ys.popleft()
+        print(str(t) + " : " + str(predict) + "/" + str(price))
+    return buyer
 
 
 def visualize_price_data(prices, savefilename=None):
@@ -126,7 +145,6 @@ def visualize_price_data(prices, savefilename=None):
             xs += [i]
             ys += [ts + j / 100.0]
             zs += [price]
-    print(ys)
     Axes3D(plt.figure()).plot3D(xs, ys, zs)
     if savefilename:
         plt.savefig(save_file_name)
@@ -168,14 +186,12 @@ def test_make_anary_data():
         make_anary_data(f, r)
 
 if __name__ == "__main__":
-    test_make_anary_data()
     assert len(sys.argv) > 1
     auction = Auction(sys.argv[1])
-    # visualize_price_data(auction.prices)
-    # exit()
     print("day1:{} items".format(len(auction.get_prices(0))))
     print("day2:{} items".format(len(auction.get_prices(1))))
-    agents = [simple_agent, greedy_agent, saikyou_agent, sorena_agent]
+    agents = [svr_agent]
+    #agents = [simple_agent, greedy_agent, saikyou_agent, sorena_agent]
     for agent in agents:
         boughter = agent(auction, Buyer(10000))
         print(boughter)

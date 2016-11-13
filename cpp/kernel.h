@@ -22,6 +22,7 @@ class Kernel {
 
   static void read_data(string filename, vector<vector<double>> &x,
                         vector<double> &y);
+  static void read_x(string filename, vector<vector<double>> &x);
 
   static void normalize(vector<vector<double>> &x);
 };

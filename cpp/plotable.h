@@ -6,13 +6,12 @@ class Plotable {
   virtual double func(const vector<double> &x) const = 0;
 
  public:
-  void plot_data(const vector<vector<double>> &x, const vector<double> &y,
-                 const string filename, const int plot_grid = 100) {
-    if (x.size() == 0) {
+  void plot_data(const vector<vector<double>> &x, const string filename,
+                 const int plot_grid = 100, bool is_silent = false) {
+    if (x.size() == 0 or filename == "") {
       cout << "invalid sample data... can't plot ..." << endl;
       return;
     }
-    if (filename == "") return;
     std::ofstream ofile;
     ofile.open(filename, std::ios::out);
     bool print_grid = plot_grid > 0;
@@ -35,13 +34,15 @@ class Plotable {
         cout << "grid plot only 1 or 2 dimension" << endl;
         return;
       }
-    } else {  // x,yを使ってプロットする
+    } else {  // x,f(x)を使ってプロットする
       REP(i, x.size()) {
         REP(j, x[0].size()) { ofile << x[i][j] << " "; }
         ofile << func(x[i]) << endl;
       }
     }
     ofile.close();
-    cout << "saved as " + filename << endl;
+    if (not is_silent) {
+      cout << "saved as " + filename << endl;
+    }
   }
 };
