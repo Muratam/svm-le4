@@ -158,19 +158,28 @@ double SVR::calc_diff(const vector<vector<double>> &test_x,
                       const cross_validation_type &cvtype, const double eps) {
   double diff = 0.0;
   auto n = test_x.size();
+  auto rel = 0;
   switch (cvtype) {
     case correct_num:
       REP(i, n) { diff += abs(svr.func(test_x[i]) - test_y[i]) < 0.1 ? 0 : 1; }
       return diff / n;
     case mean_abs:
-      REP(i, n) { diff += abs(svr.func(test_x[i]) - test_y[i]); }
-      return diff / n;
+      REP(i, n) {
+        if (test_y[i] != 0) {
+          rel++;
+          diff += abs((svr.func(test_x[i]) - test_y[i]) / test_y[i]);
+        }
+      }
+      return diff / rel;
     case mean_square:
       REP(i, n) {
-        double n_diff = svr.func(test_x[i]) - test_y[i];
-        diff += n_diff * n_diff;
+        if (test_y[i] != 0) {
+          double n_diff = (svr.func(test_x[i]) - test_y[i]) / test_y[i];
+          diff += n_diff * n_diff;
+          rel++;
+        }
       }
-      return diff / n;
+      return diff / rel;
     case coefficient:
       double d1 = 0.0, d2 = 0.0;
       REP(i, n) {
@@ -225,7 +234,6 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
     auto get_center = [div](double center, double offset, int index) {
       return center + offset * (-1.0 + 2.0 * ((double)index / div));
     };
-    // TODO: 並列化高速化
     vector<thread> threads;
     vector<vector<FindPos>> finds(div + 1);
     REP(c, finds.size()) {
@@ -236,9 +244,8 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
           pos.c_center = get_center(basepos.c_center, basepos.c_offset, c);
           pos.p_center = get_center(basepos.p_center, basepos.p_offset, p);
           Kernel kernel({kind, {pow(2.0, pos.p_center)}});
-          pos.error =
-              SVR::cross_validation(x, y, kernel, pow(2.0, pos.c_center), eps,
-                                    cvtype, cross_validate_div);
+          pos.error = SVR::cross_validation(
+              x, y, kernel, pow(2.0, pos.c_center), eps, cvtype, 4);
           finds[c][p] = pos;
         }
       }));
@@ -271,8 +278,8 @@ FindPos SVR::search_parameter(const vector<vector<double>> &x,
   assert(cross_validate_div < x.size());
   auto range = Kernel::get_default_range(kind);
   FindPos nowpos = {3, 6, range.center, range.offset, FindPos::max_error};
-  REP(i, 3) {  // 実は3回くらいでいいのでは
-    FindPos found = find_deep(nowpos, 10 * sqrt(3 - i));
+  REP(i, 2) {  // 実は2回くらいでいいのでは
+    FindPos found = find_deep(nowpos, cross_validate_div);
     if (abs(found.error) >= abs(nowpos.error)) break;
     nowpos = found;
   }

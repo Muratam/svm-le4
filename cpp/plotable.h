@@ -16,9 +16,9 @@ class Plotable {
     std::ofstream ofile;
     ofile.open(filename, std::ios::out);
     bool print_grid = plot_grid > 0;
-    if (print_grid) {          // グリッドでプロットする
-      if (x[0].size() == 1) {  // 一次元の場合
-        auto linear_grid = plot_grid * plot_grid;
+    if (print_grid) {                  // グリッドでプロットする
+      if (x[0].size() == 1) {          // 一次元の場合
+        auto linear_grid = plot_grid;  //* plot_grid;
         REP(i, linear_grid) {
           auto i_p = (double)i / linear_grid;
           ofile << i_p << " " << func({i_p}) << endl;

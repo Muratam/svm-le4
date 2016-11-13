@@ -74,8 +74,8 @@ def plot1d(x, y, base_x, base_y, save_file_name=None):
     x = [_[0] for _ in x]
     base_x = [_[0] for _ in base_x]
     # f = interp1d(x, y, kind="cubic")
-    plt.plot(x, y)
-    plt.plot(base_x, base_y)
+    plt.scatter(x, y, c="blue", marker='x')
+    plt.scatter(base_x, base_y, c="red", marker='x')
     if save_file_name:
         plt.savefig(save_file_name)
     else:

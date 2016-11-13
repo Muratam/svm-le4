@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 import plotdata
+import random
+import subprocess
+import math
 
 # 一日目のデータで評価し、二日目の入札者データと合わせてオークションする
 # 購入機構 I/Oを分離したい
@@ -20,10 +23,14 @@ class Buyer:
         self.boughts = []
 
     def buy(self, real_price, detected_price):
-        if detected_price < real_price:
+        eps = 0.001
+        if real_price - detected_price > eps:
             return False
-        if real_price > self.left_money:
+        if real_price - self.left_money > eps:
             return False
+        if abs(real_price - detected_price) < eps:
+            if random.randint(0, 1) == 0:
+                return False
         self.left_money -= real_price
         self.boughts += [real_price]
         return True
@@ -77,9 +84,11 @@ def simple_agent(auction, buyer):
 
 
 def greedy_agent(auction, buyer):
-    "一日目は無視して二日目は持ってるお金の最高額を言い続けるエージェント"
+    "一日目の平均の5倍の額で二日目を書い続ける貪欲に買いまくりたいエージェント"
+    first_mean = auction.get_prices(0).mean()
     for price in auction.get_prices(1):
-        buyer.buy(price, buyer.left_money)
+        val = min(first_mean * 5, buyer.left_money)
+        buyer.buy(price, val)
     return buyer
 
 
@@ -94,17 +103,18 @@ def saikyou_agent(auction, buyer):
 
 def sorena_agent(auction, buyer):
     "一つ前の値段を言うエージェント"
-    pass
+    pre_val = 0
+    for price in auction.get_prices(1):
+        buyer.buy(price, pre_val)
+        pre_val = price * 1.01
+    return buyer
 
 
 def svr_agent(prices, max_money):
     "SVRの予測値そのままでやる単純エージェント"
-    # 一日目のデータを遡ってmin(一日目のデータ数,500)個分で検定して o,c を決定
-    # その件数毎回過去 n 個のデータ,σ C から毎回評価機を作成する
-    # 検定の方法は様々
-    # まずどのくらいの精度で予測できるかを計測してみるべき
-    # 連続的な一次元データとする
-    # 先にデータを可視化してみるべき => 分析の結果、連続する時間の方が関連性がありそう
+    # データ可視化の結果、連続する一次元の時間の方が関連性がありそう
+    # 毎度過去n=20件のデータの回帰分析から毎度 σ,C を作成して計測
+    # 関係のない過去の σ,Cを使いまわすことはよくないため。
     pass
 
 
@@ -124,21 +134,48 @@ def visualize_price_data(prices, savefilename=None):
         plt.show()
 
 
-def visualize_svr_anary_function(sample_datas, real_datas, savefilename=None):
-    """ datas := [[x1,y1],...,[xn,yn]]
-    [0,1]の範囲のsample_datasからsvrを作成し、
-    real_datasの各xに対するf(x) と 実際の y をプロットする。
-    こうすることでSVR自体の能力を確認する"""
+def make_anary_data(f, ranges, grid_num=50):
+    "[0,1]の範囲のsample_datasからsvrを作成し、SVR自体の能力を確認する"
+    xs, ys = [], []
+    rxs, rys = [], []
+    for i in range(grid_num + 1):
+        x = i / grid_num
+        for l, r in ranges:
+            if l <= x and x <= r:
+                xs.append([x])
+                ys.append(f(x))
+                break
+        rxs.append([x])
+        rys.append(f(x))
+    plotdata.write_spaced_data("a.dat", xs, ys)
+    closs = False
+    if closs:
+        subprocess.call(["./svr", "a.dat", "--cross", "4",
+                         "--plot", "b.dat", "non-normalize"])
+    else:
+        subprocess.call(["./svr", "a.dat", "--c", "776", "--p", "0.757",
+                         "--plot", "b.dat", "non-normalize"])
+    svr_x, svr_y = plotdata.read_spaced_data("b.dat")
+    plotdata.plot1d(svr_x, svr_y, rxs, rys, save_file_name=None)
 
+
+def test_make_anary_data():
+    "一次元SVRの推定能力をテストしまくる => 結構すごいことが分かる"
+    f_ranges = [
+        (lambda x: math.sin(x * 10.0), [[0.0, 0.9]])
+    ]
+    for f, r in f_ranges:
+        make_anary_data(f, r)
 
 if __name__ == "__main__":
+    test_make_anary_data()
     assert len(sys.argv) > 1
     auction = Auction(sys.argv[1])
-    visualize_price_data(auction.prices)
-    exit()
+    # visualize_price_data(auction.prices)
+    # exit()
     print("day1:{} items".format(len(auction.get_prices(0))))
     print("day2:{} items".format(len(auction.get_prices(1))))
-    agents = [simple_agent, greedy_agent, saikyou_agent]
+    agents = [simple_agent, greedy_agent, saikyou_agent, sorena_agent]
     for agent in agents:
         boughter = agent(auction, Buyer(10000))
         print(boughter)
