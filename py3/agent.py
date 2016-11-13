@@ -14,6 +14,7 @@ import math
 import time
 
 # 一日目のデータで評価し、二日目の入札者データと合わせてオークションする
+# id意識したら精度変わるかも？
 
 
 class Buyer:
@@ -30,9 +31,6 @@ class Buyer:
             return False
         if real_price - self.left_money > eps:
             return False
-        if abs(real_price - detected_price) < eps:
-            if random.randint(0, 1) == 0:
-                return False
         self.left_money -= real_price
         self.boughts += [real_price]
         return True
@@ -41,10 +39,11 @@ class Buyer:
         return price <= self.left_money
 
     def buy_wisely(self, price, predict, left):
-        if price < self.left_money / left:
-            self.buy(price, predict * 2)  # ある程度安いやつは率先して買う
-        elif price < self.left_money / left * 2:
-            self.buy(price, predict * 1.0001)  # 普通のやつは普通に買う
+        expected = self.left_money / left
+        if predict < expected:
+            self.buy(price, expected)  # ある程度安いやつは安く買う
+        elif predict < expected * 2:
+            self.buy(price, predict * 1.001)  # 普通のやつは普通に買う
         else:
             self.buy(price, predict * 0.5)  # 高すぎるやつは買う気を見せない
 
@@ -143,13 +142,28 @@ def svr_agent(auction, buyer):
     # 毎度過去n=40件のデータの回帰分析から毎度 σ,C を作成して計測
     # 関係のない過去の σ,Cを使いまわしても精度は上がらないため
     # データ作成 -> SVR -> get
-    # 545 ~ 627 | 1,2,4,8,16...個前のデータも使用してみる
-    firsts = auction.get_pairs(0)[::-1][:40]
-    xs = deque([[_[0]] for _ in firsts])
-    ys = deque([_[1] for _ in firsts])
+    # 545 ~ 627 | 直前n個 + 1,2,4,8,16...個前のデータも使用してみる => 微妙だった
+    # 20個のみ : 557,148tsd 736$
+    # 30個,36grid : 539,129tsd,834$
+    # 20+10(1.1^)個 : 553, 191tsd,796$
+    # 20+10(2^)個 : 522, 169tsd,1392$
+    # sorena : 542, 127tsd, 635$
+    firsts = auction.get_pairs(0)
+    log_xs = [[_[0]] for _ in firsts]
+    log_ys = [_[1] for _ in firsts]
     seconds = auction.get_pairs(1)
     error_num = 0
     for i, (t, price) in enumerate(seconds):
+        just_before = 20
+        xs, ys = log_xs[-just_before:-1], log_ys[-just_before:-1]
+        """
+        for pre_i in range(10):
+            index = int(len(log_xs) - just_before - (1.0 ** pre_i))
+            if index < 0:
+                break
+            xs.append(log_xs[index])
+            ys.append(log_ys[index])
+        """
         plotdata.write_spaced_data("a.dat", xs, ys)
         plotdata.write_spaced_data("b.dat", [[t]], [""])
         subprocess.call(["./svr", "a.dat", "--cross", "4", "--silent",
@@ -159,10 +173,8 @@ def svr_agent(auction, buyer):
         if predict > 1000:  # svr作成に失敗した時は前回の値を使う
             predict = ys[-1]
         buyer.buy_wisely(price, predict, (len(seconds) - i))
-        xs.append([t])
-        xs.popleft()
-        ys.append(price)
-        ys.popleft()
+        log_xs.append([t])
+        log_ys.append(price)
         if predict / price < 0.8 or predict / price > 1.2:
             pre = ys[-2]
             if predict / pre < 0.8 or predict / pre > 1.2:
@@ -225,7 +237,7 @@ def test_make_anary_data():
 if __name__ == "__main__":
     assert len(sys.argv) > 1
     auction = Auction(sys.argv[1])
-    visualize_price_data(auction.prices)
+    # visualize_price_data(auction.prices)
     print("day1:{} items".format(len(auction.get_prices(0))))
     print("day2:{} items".format(len(auction.get_prices(1))))
     agents = [svr_agent]
