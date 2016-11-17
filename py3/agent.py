@@ -35,17 +35,27 @@ class Buyer:
         self.boughts += [real_price]
         return True
 
-    def can_buy(self, price):
-        return price <= self.left_money
+    def set_log_prices(self, log_prices):
+        self.log_prices = deque(log_prices)
 
     def buy_wisely(self, price, predict, left):
-        expected = self.left_money / left
-        if predict < expected:
-            self.buy(price, expected)  # ある程度安いやつは安く買う
-        elif predict < expected * 2:
-            self.buy(price, predict * 1.001)  # 普通のやつは普通に買う
-        else:
-            self.buy(price, predict * 0.5)  # 高すぎるやつは買う気を見せない
+        # いい感じに頑張りたいところ
+        "完璧に予測できるほどよくなる買い方"
+        assert(self.log_prices != None)
+        expected = np.array(self.log_prices).mean()
+        buy_expected = self.left_money / left
+        if expected > buy_expected:  # 前半
+            exp = expected
+            if predict < exp * 0.5:
+                self.buy(price, exp * 0.5)
+            elif predict < exp * 2:
+                self.buy(price, predict)
+            else:
+                self.buy(price, exp)  # 高すぎるやつは渋る
+        else:  # 後半は無理しても買う
+            self.buy(price, buy_expected * 1.1)
+        self.log_prices.append(price)
+        self.log_prices.popleft()
 
     def __str__(self):
         if len(self.boughts) == 0:
@@ -72,20 +82,27 @@ class Auction:
                 first_ts = int(time.mktime(ts.timetuple()))
             proc_time = (int(time.mktime(ts.timetuple())) -
                          first_ts) // 900 + i / 50.0
-            prices[day_key] = prices.get(
-                day_key, []) + [[proc_time, row["PRICE"]]]
+            prices[day_key] = prices.get(day_key, []) + [
+                [proc_time, row["PRICE"], int(row["ACCOUNT_ID"])]
+            ]
         for k, v in prices.items():
             prices[k] = np.array(v)
         return prices
 
-    def get_pairs(self, index):
+    def get_all(self, index):
         return self.prices[list(self.prices.keys())[index]]
 
+    def get_pairs(self, index):
+        return self.get_all(index)[:, 0:2]
+
     def get_prices(self, index):
-        return self.get_pairs(index)[:, 1]
+        return self.get_all(index)[:, 1]
 
     def get_timestamps(self, index):
-        return self.get_pairs(index)[:, 0]
+        return self.get_all(index)[:, 0]
+
+    def get_ids():
+        return self.get_all(index)[:, 2]
 
 
 def simple_agent(auction, buyer):
@@ -116,6 +133,7 @@ def saikyou_agent(auction, buyer):
 
 def sorena_agent(auction, buyer):
     "一つ前の値段を言うエージェント"
+    buyer.set_log_prices(auction.get_prices(0))
     pre_val = 0
     error_num = 0
     seconds = auction.get_prices(1)
@@ -130,6 +148,7 @@ def sorena_agent(auction, buyer):
 
 def yochi_agent(auction, buyer):
     "完全予測ができるエージェント"
+    buyer.set_log_prices(auction.get_prices(0))
     seconds = auction.get_prices(1)
     for i, price in enumerate(seconds):
         buyer.buy_wisely(price, price, (len(seconds) - i))
@@ -148,14 +167,16 @@ def svr_agent(auction, buyer):
     # 20+10(1.1^)個 : 553, 191tsd,796$
     # 20+10(2^)個 : 522, 169tsd,1392$
     # sorena : 542, 127tsd, 635$
-    firsts = auction.get_pairs(0)
-    log_xs = [[_[0]] for _ in firsts]
-    log_ys = [_[1] for _ in firsts]
-    seconds = auction.get_pairs(1)
+    buyer.set_log_prices(auction.get_prices(0))
+    firsts = auction.get_all(0)
+    log_xs = list(firsts[:, [0, 2]])
+    log_ys = list(firsts[:, 1])
+    seconds = auction.get_all(1)
     error_num = 0
-    for i, (t, price) in enumerate(seconds):
+    for i, (t, price, a_id) in enumerate(seconds):
         just_before = 20
-        xs, ys = log_xs[-just_before:-1], log_ys[-just_before:-1]
+        xs = log_xs[-just_before:-1]
+        ys = log_ys[-just_before:-1]
         """
         for pre_i in range(10):
             index = int(len(log_xs) - just_before - (1.0 ** pre_i))
@@ -165,22 +186,23 @@ def svr_agent(auction, buyer):
             ys.append(log_ys[index])
         """
         plotdata.write_spaced_data("a.dat", xs, ys)
-        plotdata.write_spaced_data("b.dat", [[t]], [""])
+        b_lists = [[t, _] for _ in list(set([_[1] for _ in xs]))]
+        plotdata.write_spaced_data("b.dat", b_lists, [""] * len(b_lists))
         subprocess.call(["./svr", "a.dat", "--cross", "4", "--silent",
                          "--test", "b.dat", "--plot", "c.dat", "non-normalize"])
         svr_x, svr_y = plotdata.read_spaced_data("c.dat")
-        predict = svr_y[0]
+        predict = max(svr_y)
         if predict > 1000:  # svr作成に失敗した時は前回の値を使う
             predict = ys[-1]
         buyer.buy_wisely(price, predict, (len(seconds) - i))
-        log_xs.append([t])
+        log_xs.append([t, a_id])
         log_ys.append(price)
         if predict / price < 0.8 or predict / price > 1.2:
             pre = ys[-2]
             if predict / pre < 0.8 or predict / pre > 1.2:
                 error_num += 1
                 print(str(t) + " : " + str(predict) + "/" +
-                      str(price) + " / " + str(pre))
+                      str(price) + " / " + str(pre) + "(pre)")
     print(str(error_num) + " times sharp diff")
     return buyer
 
@@ -240,9 +262,9 @@ if __name__ == "__main__":
     # visualize_price_data(auction.prices)
     print("day1:{} items".format(len(auction.get_prices(0))))
     print("day2:{} items".format(len(auction.get_prices(1))))
-    agents = [svr_agent]
-    # agents = [simple_agent, greedy_agent,
-    #          sorena_agent, yochi_agent, saikyou_agent]
+    #agents = [svr_agent]
+    agents = [simple_agent, greedy_agent,
+              sorena_agent, yochi_agent, saikyou_agent]
     for agent in agents:
         boughter = agent(auction, Buyer(10000))
         print(boughter)
