@@ -2,6 +2,7 @@ import pandas as pd
 import sys
 import datetime
 import os
+import visualize
 from pprint import pprint
 from collections import OrderedDict, deque
 import matplotlib.pyplot as plt
@@ -35,27 +36,18 @@ class Buyer:
         self.boughts += [real_price]
         return True
 
-    def set_log_prices(self, log_prices):
-        self.log_prices = deque(log_prices)
-
-    def buy_wisely(self, price, predict, left):
-        # いい感じに頑張りたいところ
+    def buy_wisely(self, price, predict, left, allow_level=4):
         "完璧に予測できるほどよくなる買い方"
-        assert(self.log_prices != None)
-        expected = np.array(self.log_prices).mean()
-        buy_expected = self.left_money / left
-        if expected > buy_expected:  # 前半
-            exp = expected
-            if predict < exp * 0.5:
-                self.buy(price, exp * 0.5)
-            elif predict < exp * 2:
-                self.buy(price, predict)
-            else:
-                self.buy(price, exp)  # 高すぎるやつは渋る
-        else:  # 後半は無理しても買う
-            self.buy(price, buy_expected * 1.1)
-        self.log_prices.append(price)
-        self.log_prices.popleft()
+        exp = self.left_money / left
+        allow_exp = exp * allow_level
+        if predict < allow_exp:  # ちょっと高い時は許容期待値までなら出す
+            val = predict * 1.001
+        else:  # 高すぎるやつは許容期待値まで
+            val = allow_exp
+        return self.buy(price, val)
+        # 2: 541|248.39$, 627|15.41, 587|407.96$
+        # 3: 553|0.74$, 628|1.13$, 603|75.27$
+        # 4: 550|8.28$, 624|9.62$, 605|11.87$
 
     def __str__(self):
         if len(self.boughts) == 0:
@@ -108,7 +100,8 @@ class Auction:
 def simple_agent(auction, buyer):
     "一日目の中間値で二日目を投稿し続ける簡単なエージェント"
     first_mean = auction.get_prices(0).mean()
-    for price in auction.get_prices(1):
+    seconds = auction.get_prices(1)
+    for i, price in enumerate(auction.get_prices(1)):
         buyer.buy(price, first_mean)
     return buyer
 
@@ -133,7 +126,6 @@ def saikyou_agent(auction, buyer):
 
 def sorena_agent(auction, buyer):
     "一つ前の値段を言うエージェント"
-    buyer.set_log_prices(auction.get_prices(0))
     pre_val = 0
     error_num = 0
     seconds = auction.get_prices(1)
@@ -148,7 +140,6 @@ def sorena_agent(auction, buyer):
 
 def yochi_agent(auction, buyer):
     "完全予測ができるエージェント"
-    buyer.set_log_prices(auction.get_prices(0))
     seconds = auction.get_prices(1)
     for i, price in enumerate(seconds):
         buyer.buy_wisely(price, price, (len(seconds) - i))
@@ -167,7 +158,6 @@ def svr_agent(auction, buyer):
     # 20+10(1.1^)個 : 553, 191tsd,796$
     # 20+10(2^)個 : 522, 169tsd,1392$
     # sorena : 542, 127tsd, 635$
-    buyer.set_log_prices(auction.get_prices(0))
     firsts = auction.get_all(0)
     log_xs = list(firsts[:, [0, 2]])
     log_ys = list(firsts[:, 1])
@@ -177,14 +167,6 @@ def svr_agent(auction, buyer):
         just_before = 20
         xs = log_xs[-just_before:-1]
         ys = log_ys[-just_before:-1]
-        """
-        for pre_i in range(10):
-            index = int(len(log_xs) - just_before - (1.0 ** pre_i))
-            if index < 0:
-                break
-            xs.append(log_xs[index])
-            ys.append(log_ys[index])
-        """
         plotdata.write_spaced_data("a.dat", xs, ys)
         b_lists = [[t, _] for _ in list(set([_[1] for _ in xs]))]
         plotdata.write_spaced_data("b.dat", b_lists, [""] * len(b_lists))
@@ -207,64 +189,16 @@ def svr_agent(auction, buyer):
     return buyer
 
 
-def visualize_price_data(prices, savefilename=None):
-    "x:日程,y:時間,z:価格 として可視化"
-    xs, ys, zs = [], [], []
-    for i, (_, ts_prices) in enumerate(prices.items()):
-        for j, (ts, price) in enumerate(ts_prices):
-            xs += [i]
-            ys += [ts]
-            zs += [price]
-    Axes3D(plt.figure()).plot3D(xs, ys, zs)
-    if savefilename:
-        plt.savefig(save_file_name)
-    else:
-        plt.show()
-
-
-def make_anary_data(f, ranges, grid_num=50):
-    "[0,1]の範囲のsample_datasからsvrを作成し、SVR自体の能力を確認する"
-    xs, ys = [], []
-    rxs, rys = [], []
-    for i in range(grid_num + 1):
-        x = i / grid_num
-        for l, r in ranges:
-            if l <= x and x <= r:
-                xs.append([x])
-                ys.append(f(x))
-                break
-        rxs.append([x])
-        rys.append(f(x))
-    plotdata.write_spaced_data("a.dat", xs, ys)
-    if True:
-        subprocess.call(["./svr", "a.dat", "--cross", "4",
-                         "--plot", "b.dat", "non-normalize"])
-    else:
-        subprocess.call(["./svr", "a.dat", "--c", "776", "--p", "0.757",
-                         "--plot", "b.dat", "non-normalize"])
-    svr_x, svr_y = plotdata.read_spaced_data("b.dat")
-    plotdata.plot1d(svr_x, svr_y, rxs, rys, save_file_name=None)
-
-
-def test_make_anary_data():
-    "一次元SVRの推定能力をテストしまくる => 結構すごいことが分かる"
-    f_ranges = [
-        (lambda x: 14.0 + (0.1 if int(x * 50) % 2 == 0 else 0.0), [[0.5, 0.9]])
-        #(lambda x: math.sin(x * 10.0), [[0.0, 0.9]])
-    ]
-    for f, r in f_ranges:
-        make_anary_data(f, r)
-    exit()
-
 if __name__ == "__main__":
     assert len(sys.argv) > 1
     auction = Auction(sys.argv[1])
-    # visualize_price_data(auction.prices)
     print("day1:{} items".format(len(auction.get_prices(0))))
     print("day2:{} items".format(len(auction.get_prices(1))))
-    #agents = [svr_agent]
     agents = [simple_agent, greedy_agent,
-              sorena_agent, yochi_agent, saikyou_agent]
+              sorena_agent, yochi_agent, saikyou_agent,
+              svr_agent
+              ]
     for agent in agents:
         boughter = agent(auction, Buyer(10000))
+        print("### " + agent.__name__ + " ###")
         print(boughter)
