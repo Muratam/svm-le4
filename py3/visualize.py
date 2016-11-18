@@ -10,20 +10,13 @@ import subprocess
 import math
 
 
-def visualize_price_data(prices, savefilename=None):
-    "x:日程,y:時間,z:価格 として可視化"
-    xs, ys, zs = [], [], []
-    for i, (_, ts_prices) in enumerate(prices.items()):
-        for j, (ts, price) in enumerate(ts_prices):
-            xs += [i]
-            ys += [ts]
-            zs += [price]
+def visualize_3d_data(xs,ys,zs,savefilename = None):
+    "各xs,ys,zs つながり"
     Axes3D(plt.figure()).plot3D(xs, ys, zs)
     if savefilename:
         plt.savefig(save_file_name)
     else:
         plt.show()
-
 
 def make_anary_data(f, ranges, grid_num=50):
     "[0,1]の範囲のsample_datasからsvrを作成し、SVR自体の能力を確認する"

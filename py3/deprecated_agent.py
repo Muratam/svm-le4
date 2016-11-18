@@ -58,45 +58,6 @@ class Buyer:
         )
 
 
-class Auction:
-
-    def __init__(self, filename):
-        self.prices = Auction.get_datas_by_date(filename)
-
-    def get_datas_by_date(filename):
-        df = pd.read_csv(filename)
-        prices = OrderedDict()
-        for i, row in df.iterrows():
-            ts = datetime.datetime.strptime(
-                row["TIMESTAMP"], "%m/%d/%Y %H:%M:%S")
-            day_key = ts.strftime("%Y/%m/%d")
-            if i == 0:
-                first_ts = int(time.mktime(ts.timetuple()))
-            proc_time = (int(time.mktime(ts.timetuple())) -
-                         first_ts) // 900 + i / 50.0
-            prices[day_key] = prices.get(day_key, []) + [
-                [proc_time, row["PRICE"], int(row["ACCOUNT_ID"])]
-            ]
-        for k, v in prices.items():
-            prices[k] = np.array(v)
-        return prices
-
-    def get_all(self, index):
-        return self.prices[list(self.prices.keys())[index]]
-
-    def get_pairs(self, index):
-        return self.get_all(index)[:, 0:2]
-
-    def get_prices(self, index):
-        return self.get_all(index)[:, 1]
-
-    def get_timestamps(self, index):
-        return self.get_all(index)[:, 0]
-
-    def get_ids():
-        return self.get_all(index)[:, 2]
-
-
 def simple_agent(auction, buyer):
     "一日目の中間値で二日目を投稿し続ける簡単なエージェント"
     first_mean = auction.get_prices(0).mean()

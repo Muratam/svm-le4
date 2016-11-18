@@ -12,10 +12,9 @@ import random
 import subprocess
 import math
 import time
-from agent import Auction
-# 一日目のデータで評価し、二日目の入札者データと合わせてオークションする
+from auction import Auction
 
-# agent.py の buyer を置き換え
+# 一日目のデータで評価し、二日目の入札者データと合わせてオークションする
 
 
 class Buyer:
@@ -29,8 +28,10 @@ class Buyer:
         "完璧に予測できるほどよくなる買い方"
         exp = self.left_money / left
         allow_exp = exp * allow_level
-        if predict < allow_exp:  # ちょっと高い時は許容期待値までなら出す
-            val = predict * 1.001
+        if predict < exp:  # ちょっと高い時は許容期待値までなら出す
+            val = exp
+        elif predict < exp * allow_level:
+            val = predict * 1.1
         else:  # 高すぎるやつは許容期待値まで
             val = allow_exp
         return val
@@ -54,6 +55,8 @@ class Buyer:
             max(self.boughts), min(self.boughts)
         )
 
+# id0001,一人対戦のときは 理論上628個買えることがわかっている
+
 
 class Agent:
 
@@ -64,7 +67,7 @@ class Agent:
         self.log_xs = list(self.firsts[:, [0, 2]])
         self.log_ys = list(self.firsts[:, 1])
 
-    def do_multi_auction(methods, auction, max_money):
+    def do_multi_auction(methods, auction, max_money, show_process=False):
         agents = []
         first_mean = auction.get_prices(0).mean()
         firsts = auction.get_all(0)
@@ -75,22 +78,29 @@ class Agent:
         for i, (t, price, a_id) in enumerate(seconds):
             left = len(seconds) - i
             vals = [method(agent, left, t) for agent, method in agents]
+            vals = [int(_ * 1000) / 1000 for _ in vals]
             prices = vals.copy()
             prices.append(price)
             prices.sort()
-            price = prices[-2]
+            result_price = prices[-2]
+            buyer_count = 0
+            boughters = [(agent, method, j)
+                         for j, (agent, method) in enumerate(agents)
+                         if vals[j] == max(prices)]
+            if len(boughters) > 0:
+                random.shuffle(boughters)
+                agent, method, j = boughters[0]
+                agent.buyer.buy(price)
+                a_id = j
+                buyer_count += 1
             for j, (agent, method) in enumerate(agents):
-                if vals[j] == max(prices):
-                    agent.buyer.buy(price)
-                    print(method.__name__)
-                    a_id = j
-                agent.teach_result(t, a_id, price)
-                # a_id is dummy / ランダムを搭載するべき
-            print(price)
-        for agent, method in agents:
-            print(method.__name__)
-            print(agent.buyer)
-            # TODO : 最大値のものが二番目のものを支払う
+                agent.teach_result(t, a_id, result_price)
+            if a_id > len(agents):
+                a_id = -1
+            if show_process:
+                # price
+                print(" ".join([str(_) for _ in [a_id, result_price, t]]))
+        return agents
 
     def buy_simple(self, left, t):
         "一日目の中間値で二日目を投稿し続ける簡単なエージェント"
@@ -126,12 +136,36 @@ class Agent:
         self.log_ys.append(price)
         self.buyer.tell_price(price)
 
+    agent_dict = {
+        "@simple": buy_simple,
+        "@greedy": buy_greedy,
+        "@sorena": buy_sorena,
+        "@svr": buy_svr,
+    }
+
+
+def main(args):
+    allowed_agents = " ".join(Agent.agent_dict.keys())
+    if len(args) <= 1:
+        return print(
+            "Usage:\n    python3 " + __file__ + " <filename> " +
+            "(" + allowed_agents + " ...) " +
+            "[--visualize-prices] [--show-process]"
+        )
+    methods = [Agent.agent_dict[_] for _ in args if _ in Agent.agent_dict]
+    if len(methods) < 1:
+        return print("no method selected !! (" + allowed_agents + ")")
+    auction = Auction(args[1])
+    if "--visualize-prices" in args:
+        return auction.visualize_prices()
+    show_process = "--show-process" in args
+    agents = Agent.do_multi_auction(methods, auction, 10000, show_process)
+    if not show_process:
+        print("day1:{} items".format(len(auction.get_prices(0))))
+        print("day2:{} items".format(len(auction.get_prices(1))))
+        for agent, method in agents:
+            print(method.__name__)
+            print(agent.buyer)
 
 if __name__ == "__main__":
-    assert len(sys.argv) > 1
-    auction = Auction(sys.argv[1])
-    print("day1:{} items".format(len(auction.get_prices(0))))
-    print("day2:{} items".format(len(auction.get_prices(1))))
-    methods = [Agent.buy_sorena, Agent.buy_simple,
-               Agent.buy_greedy, Agent.buy_svr]
-    Agent.do_multi_auction(methods, auction, 10000)
+    main(sys.argv)
