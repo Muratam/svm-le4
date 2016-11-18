@@ -98,7 +98,6 @@ class Agent:
             if a_id > len(agents):
                 a_id = -1
             if show_process:
-                # price
                 print(" ".join([str(_) for _ in [a_id, t, result_price]]))
         return agents
 

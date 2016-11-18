@@ -46,8 +46,8 @@ def make_anary_data(f, ranges, grid_num=50):
 def test_make_anary_data():
     "一次元SVRの推定能力をテストしまくる => 結構すごいことが分かる"
     f_ranges = [
-        (lambda x: 14.0 + (0.1 if int(x * 50) % 2 == 0 else 0.0), [[0.5, 0.9]])
-        #(lambda x: math.sin(x * 10.0), [[0.0, 0.9]])
+        #(lambda x: 14.0 + (0.1 if int(x * 50) % 2 == 0 else 0.0), [[0.5, 0.9]])
+        (lambda x: math.sin(x * 20.0), [[0.0, 0.9]])
     ]
     for f, r in f_ranges:
         make_anary_data(f, r)

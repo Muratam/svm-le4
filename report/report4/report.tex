@@ -1,0 +1,94 @@
+\documentclass[]{jsarticle}
+\usepackage[dvipdfmx]{graphicx}
+\usepackage[deluxe]{otf}
+\usepackage[hang,small,bf]{caption}
+\usepackage[subrefformat=parens]{subcaption}
+\captionsetup{compatibility=false}
+
+\renewcommand{\kanjifamilydefault}{\mgdefault}
+\newcommand*{\graphs}[3]{
+  \begin{minipage}[b]{0.5\hsize}
+    \includegraphics[scale=#1]{#2}
+    \subcaption{#3}
+  \end{minipage}
+}
+
+\begin{document}
+\title{平成28年度 3回生後期実験(エージェント) \\ 課題4 入札エージェントの作成 }
+\author{村田 叡}
+\date{ 2016/11/18 }
+\maketitle
+
+\section{プログラム概要}
+今回のレポートではオークションで予測値を元に入札するエージェントを作成した。
+
+\subsection{プログラムの起動方法及び実行例}
+readme.md  の項 requirements を参照のこと
+
+\section{外部仕様}
+エージェントはPython3で実装した。
+以下、そのPython3の外部インターフェイスについて述べる
+
+\subsection{py3/multiagent.py}
+このコードでは、多エージェントによるオークションシミュレートを実装している。
+オークションデータのcsvファイル、エージェントの種類を引数にとり、オークションを行う。 \\
+エージェントは以下の4種類を用意している。 \\
+1. 一日目の購入価格の中央値で購入し続ける単純エージェント @simple \\
+2. 一日目の購入価格の中央値の5倍の価格で購入し続ける貪欲エージェント @greedy \\
+3. 一つ前の購入価格を次の価格の予測値として利用して戦略的に購入するエージェント @sorena \\
+4. SVRに基づいて次の価格を予測し、戦略的に購入するエージェント @svr \\
+例えば、id0001.csvを用いて、 貪欲エージェントとSVRエージェントを戦わせるには \\
+\verb|python3 py3/multi_agent.py sample_data/id0001.csv @greedy @svr|
+のようにすればよい。 \\
+\verb|--show-process| を引数に加えると、購入過程を逐一表示する。
+この購入過程は、例えば \verb|0 145.16 13.138| については、
+左から 購入者id(0), 購入された時間(145.16)、落札価格(13.138) を表す。
+購入者idは、csvのデータの人が買えば -1を,
+0以上であれば、それぞれエージェントを順に表す。
+例えば、\verb|python3 py3/multi_agent.py sample_data/id0001.csv @greedy @svr @simple --show-process|
+ によって実行すれば、@greedyは0番、 @svrは1番、@simpleは2版である。
+SVRの予測値については、ガウスカーネルで、毎度最適なC,σの値を計算して取得している。
+
+\section{内部仕様}
+\subsection{py3/visualize.py}
+このコードでは、データをプロットして可視化するために必要な関数を実装している。
+CUIインターフェースは無い。
+3Dデータを表示する関数、SVRの予測がどのようなものなのかを検証する関数を提供する。
+
+\subsection{py3/auction.py}
+このコードでは、オークションデータを取り扱うAuctionクラスを実装している。
+CUIインターフェースは無い。
+Auctionクラスは、コンストラクタにCSVファイルをとってデータを読み込み、
+可視化する関数や、価格の配列を取り出す関数などを提供している。
+
+
+\subsection{py3/multiagent.py}
+このコードでは、内部的には購入に携わるBuyerクラス及び購入戦略に基づいて購入するAgentクラスを実装している。
+\subsubsection{Buyerクラス}
+最初に所持金額を与え、buyメソッドにより購入を行うことができるような抽象化をしている。
+\subsubsection{Agentクラス}
+一日目のデータ、一日目の購入価格の中央値、Buyerクラスインスタンスを元にして作成する。
+buy\_から始まる関数では、各エージェントがその関数が表す戦略に基づいた購入価格を出力する。
+do\_multi\_auction 関数によって、実際に多エージェントによるオークションをシュミレートする。
+
+\section{考察}
+\subsection{SVRの予測精度について}
+今までのSVM,SVRでは、データサンプルから分類機を作成していた。
+今回は未知の値を予測することが目的ということで、分類することと本質的に異なる。
+そのため、SVR自体の能力を過信せず、一度検証してみることが大事である。
+予測精度を可視化するために、ある関数$f(x)$を定義し($x \in [0,1]$ )、
+与えるデータの範囲を$[a,b](a<b,0<a<1,0<b<1)$とすることで予測がどのように
+変化するかを考察する。
+\newpage
+\subsubsection{sin波}
+\begin{figure}[htbp]
+ \graphs{0.4}{./plots/sin1.png}{$a = 0,b = 0.5$}
+ \graphs{0.4}{./plots/sin2.png}{$a = 0,b = 0.8$}
+ \caption{$f(x)=sin(10x)$ による予測値(赤:実値,青:予測値) }
+ \graphs{0.4}{./plots/sin3.png}{$a = 0,b = 0.8$}
+ \graphs{0.4}{./plots/sin4.png}{$a = 0,b = 0.9$}
+ \caption{$f(x)=sin(20x)$ による予測値(赤:実値,青:予測値) }
+\end{figure}
+
+
+\end{document}
