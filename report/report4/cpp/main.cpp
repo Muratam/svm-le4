@@ -8,7 +8,7 @@ int print_usage(char *const thisName) {
        << " <dataname> [gauss (default)| polynomial | linear] "
           "[--plot <filename>.dat] [--cross <div_num>] "
           "[mean_square (default) | mean_abs | corrent_num | coefficient] "
-          "[--p <param>] [--c <param_C>] [--silent]"
+          "[--p <param>] [--c <param_C>] [--silent] [--plot-c-p <cp_filename>]"
           "[--eps <param_eps>] [--test <testdata>.dat] [non-normalize]\n"
        << R"(Options :
   --plot         plot function :: file name
@@ -16,6 +16,7 @@ int print_usage(char *const thisName) {
   --p            defined parameter :: parameter
   --c            the parameter C  (default 1000)
   --eps          the parameter eps(default 0.01)
+  --plot-c-p     when cross validation, plot the result
   --test         when created SVR,test data (output => --plot file)
   --silent       do process silently
   non-normalize  then don't normalize x
@@ -31,13 +32,14 @@ int main(int argc, char *const argv[]) {
   FOR(i, 1, argc) args.push_back(argv[i]);
   const string CROSS = "--cross", PLOT = "--plot", PARAM = "--p",
                SILENT = "--silent", PARAM_C = "--c", EPS = "--eps",
-               TEST = "--test";
+               TEST = "--test", PLOT_C_P = "--plot-c-p";
   auto parsed = parse_args(args, {{CROSS, "10"},
                                   {PLOT, "result.dat"},
                                   {PARAM, ""},
                                   {PARAM_C, ""},
                                   {EPS, ""},
-                                  {TEST, "testdata.dat"}});
+                                  {TEST, "testdata.dat"},
+                                  {PLOT_C_P, "c_p.dat"}});
   const auto kernel_kind = Kernel::strings2kernel_kind(args);
   const auto cv_type = SVR::get_cross_validation(args);
   const double eps = parsed.count(EPS) ? atof(parsed[EPS].c_str()) : 1e-2;
@@ -64,6 +66,16 @@ int main(int argc, char *const argv[]) {
     const auto pos =
         SVR::search_parameter(x, y, kernel_kind, eps, cv_type,
                               atoi(parsed[CROSS].c_str()), is_silent);
+    if (parsed.count(PLOT_C_P)) {
+      std::ofstream ofile;
+      ofile.open(parsed[PLOT_C_P], std::ios::out);
+      ofile << pow(2.0, pos.c_center) << " " << pow(2.0, pos.p_center) << endl;
+      ofile.close();
+      if (not is_silent) {
+        cout << "saved c,p as " << parsed[PLOT_C_P] << endl;
+      }
+      return 0;
+    }
     const auto kernel2 = Kernel(kernel_kind, {pow(2.0, pos.p_center)});
     SVR svr(x, y, kernel2, pow(2.0, pos.c_center), eps);
     if (not is_silent) {

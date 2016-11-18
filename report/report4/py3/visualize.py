@@ -19,38 +19,61 @@ def visualize_3d_data(xs, ys, zs, savefilename=None):
         plt.show()
 
 
-def make_anary_data(f, ranges, grid_num=50):
+def create_svr(ys, dim, filename):
+    "各データからSVR計算用の形式に変換し、c,pを得る"
+    res_xs, res_ys = [], []
+    for i in range(dim, len(ys)):
+        res_x = []
+        for j in range(dim):
+            res_x.append(ys[i - dim + j])
+        res_xs.append(res_x)
+        res_ys.append(ys[i])
+    plotdata.write_spaced_data(filename, res_xs, res_ys)
+    subprocess.call(["./svr", filename, "--cross", "10", "--silent",
+                     "--plot-c-p", "tmp.dat", "non-normalize"])
+    c, p = plotdata.read_spaced_data("tmp.dat")
+    return c[0][0], p[0]
+
+
+def test_svr(ys, dim, c, p, svr_filename):
+    plotdata.write_spaced_data("tmp.dat", [ys[-dim:]], [""])
+    subprocess.call(["./svr", svr_filename, "--c", str(c), "--p", str(p), "--silent",
+                     "--test", "tmp.dat", "--plot", "tmp2.dat", "non-normalize"])
+    _, svr_y = plotdata.read_spaced_data("tmp2.dat")
+    return svr_y[0]
+
+
+def make_anary_data(f, end, grid_num=200):
     "[0,1]の範囲のsample_datasからsvrを作成し、SVR自体の能力を確認する"
-    xs, ys = [], []
+    ys = []
+    for i in range(grid_num + 1):
+        x = i / grid_num
+        if x <= end:
+            ys.append(f(x))
+    dim = min(10, grid_num / 10)
+    c, p = create_svr(ys, dim, "a.dat")
+    svr_ys = []
     rxs, rys = [], []
     for i in range(grid_num + 1):
         x = i / grid_num
-        for l, r in ranges:
-            if l <= x and x <= r:
-                xs.append([x])
-                ys.append(f(x))
-                break
         rxs.append([x])
         rys.append(f(x))
-    plotdata.write_spaced_data("a.dat", xs, ys)
-    if True:
-        subprocess.call(["./svr", "a.dat", "--cross", "4",
-                         "--plot", "b.dat", "non-normalize"])
-    else:
-        subprocess.call(["./svr", "a.dat", "--c", "776", "--p", "0.757",
-                         "--plot", "b.dat", "non-normalize"])
-    svr_x, svr_y = plotdata.read_spaced_data("b.dat")
-    plotdata.plot1d(svr_x, svr_y, rxs, rys, save_file_name=None)
+        if x <= end:
+            svr_ys.append(f(x))
+        else:
+            y = test_svr(rys, dim, c, p, "a.dat")
+            svr_ys.append(y)
+    plotdata.plot1d(rxs, svr_ys, rxs, rys, save_file_name=None)
 
 
 def test_make_anary_data():
     "一次元SVRの推定能力をテストしまくる => 結構すごいことが分かる"
     f_ranges = [
         #(lambda x: 14.0 + (0.1 if int(x * 50) % 2 == 0 else 0.0), [[0.5, 0.9]])
-        (lambda x: math.sin(x * 20.0), [[0.0, 0.9]])
+        (lambda x: math.sin(x * 10.0), 0.5)
     ]
-    for f, r in f_ranges:
-        make_anary_data(f, r)
+    for f, end in f_ranges:
+        make_anary_data(f, end)
 
 if __name__ == "__main__":
     test_make_anary_data()
