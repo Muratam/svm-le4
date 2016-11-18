@@ -47,7 +47,8 @@ readme.md  の項 requirements を参照のこと
 0以上であれば、それぞれエージェントを順に表す。
 例えば、\verb|python3 py3/multi_agent.py sample_data/id0001.csv @greedy @svr @simple --show-process|
  によって実行すれば、@greedyは0番、 @svrは1番、@simpleは2版である。
-SVRの予測値については、ガウスカーネルで、毎度最適なC,σの値を計算して取得している。
+SVRの予測値については、ガウスカーネルで、一日目のデータを元に求めた C,σの値を元にして、
+最近のデータから毎度SVRを作成して予測している。
 
 \section{内部仕様}
 \subsection{py3/visualize.py}
@@ -73,22 +74,22 @@ do\_multi\_auction 関数によって、実際に多エージェントによる�
 
 \section{考察}
 \subsection{SVRの予測精度について}
-今までのSVM,SVRでは、データサンプルから分類機を作成していた。
-今回は未知の値を予測することが目的ということで、分類することと本質的に異なる。
-そのため、SVR自体の能力を過信せず、一度検証してみることが大事である。
+SVR自体の能力を過信せず、一度検証してみることが大事である。
 予測精度を可視化するために、ある関数$f(x)$を定義し($x \in [0,1]$ )、
-与えるデータの範囲を$[a,b](a<b,0<a<1,0<b<1)$とすることで予測がどのように
+与えるデータの範囲を$[0,b](0<b<1)$とすることで予測がどのように
 変化するかを考察する。
 \newpage
 \subsubsection{sin波}
 \begin{figure}[htbp]
- \graphs{0.4}{./plots/sin1.png}{$a = 0,b = 0.5$}
- \graphs{0.4}{./plots/sin2.png}{$a = 0,b = 0.8$}
+ \graphs{0.4}{./plots/sin4.png}{$b = 0.2$}
+ \graphs{0.4}{./plots/sin1.png}{$b = 0.5$}
  \caption{$f(x)=sin(10x)$ による予測値(赤:実値,青:予測値) }
- \graphs{0.4}{./plots/sin3.png}{$a = 0,b = 0.8$}
- \graphs{0.4}{./plots/sin4.png}{$a = 0,b = 0.9$}
- \caption{$f(x)=sin(20x)$ による予測値(赤:実値,青:予測値) }
+ \graphs{0.4}{./plots/2sin2.png}{$b = 0.2$}
+ \graphs{0.4}{./plots/2sin1.png}{$b = 0.5$}
+ \caption{$f(x)=sin(10x)$ による予測値(赤:実値,青:予測値) }
 \end{figure}
+sin波は、周期的な規則性があるため、少ないサンプル数でもほどよい予測ができる事がわかる
+但し、図1(a)のように、sin波の全景なしでは予測は不可能である。
 
 
 \end{document}

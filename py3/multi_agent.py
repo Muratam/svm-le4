@@ -12,6 +12,7 @@ import random
 import subprocess
 import math
 import time
+import visualize
 from auction import Auction
 
 # 一日目のデータで評価し、二日目の入札者データと合わせてオークションする
@@ -64,8 +65,9 @@ class Agent:
         self.firsts = firsts
         self.first_mean = first_mean
         self.buyer = buyer
-        self.log_xs = list(self.firsts[:, [0, 2]])
         self.log_ys = list(self.firsts[:, 1])
+        self.c = None
+        self.p = None
 
     def do_multi_auction(methods, auction, max_money, show_process=False):
         agents = []
@@ -94,11 +96,10 @@ class Agent:
                 a_id = j
                 buyer_count += 1
             for j, (agent, method) in enumerate(agents):
-                agent.teach_result(t, a_id, result_price)
+                agent.teach_result(result_price)
             if a_id > len(agents):
                 a_id = -1
             if show_process:
-                # price
                 print(" ".join([str(_) for _ in [a_id, t, result_price]]))
         return agents
 
@@ -117,22 +118,14 @@ class Agent:
 
     def buy_svr(self, left, t):
         "SVRの予測値そのままでやるエージェント"
-        just_before = 20
-        xs = self.log_xs[-just_before:-1]
-        ys = self.log_ys[-just_before:-1]
-        plotdata.write_spaced_data("a.dat", xs, ys)
-        b_lists = [[t, _] for _ in list(set([_[1] for _ in xs]))]
-        plotdata.write_spaced_data("b.dat", b_lists, [""] * len(b_lists))
-        subprocess.call(["./svr", "a.dat", "--cross", "4", "--silent",
-                         "--test", "b.dat", "--plot", "c.dat", "non-normalize"])
-        svr_x, svr_y = plotdata.read_spaced_data("c.dat")
-        predict = max(svr_y)
-        if predict > 1000:  # svr作成に失敗した時は前回の値を使う
-            predict = ys[-1]
+        dim = 10
+        if self.c == None or self.p == None:
+            self.c, self.p = visualize.create_svr(
+                self.log_ys[-min(len(self.log_ys), 100):], dim, "a.dat")
+        predict = visualize.test_svr(self.log_ys, dim, self.c, self.p, "a.dat")
         return self.buyer.expected(predict, left)
 
-    def teach_result(self, t, a_id, price):
-        self.log_xs.append([t, a_id])
+    def teach_result(self, price):
         self.log_ys.append(price)
         self.buyer.tell_price(price)
 
