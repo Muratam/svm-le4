@@ -8,6 +8,7 @@ import numpy as np
 import plotdata
 import subprocess
 import math
+import random
 
 
 def visualize_3d_data(xs, ys, zs, savefilename=None):
@@ -71,7 +72,7 @@ def make_anary_data(f, end, grid_num=200):
 def test_make_anary_data():
     "一次元SVRの推定能力をテストしまくる => 結構すごいことが分かる"
     f_ranges = [
-        (lambda x: math.exp(x), 0.25)
+        (lambda x: x + 0.2 * (round(x) + random.random()), 0.3)
     ]
     for f, end in f_ranges:
         make_anary_data(f, end)

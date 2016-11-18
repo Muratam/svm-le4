@@ -29,7 +29,7 @@ class Buyer:
         "完璧に予測できるほどよくなる買い方"
         exp = self.left_money / left
         allow_exp = exp * allow_level
-        if predict < exp:  # ちょっと高い時は許容期待値までなら出す
+        if predict < exp:
             val = exp
         elif predict < exp * allow_level:
             val = predict * 1.1
@@ -140,6 +140,18 @@ class Agent:
     }
 
 
+def max_expected(prices, left_price):
+    prices = prices.copy()
+    prices.sort()
+    boughts = 0
+    for price in prices:
+        if left_price - price < 0:
+            break
+        left_price -= price
+        boughts += 1
+    return boughts, prices[-1]
+
+
 def main(args):
     allowed_agents = " ".join(Agent.agent_dict.keys())
     if len(args) <= 1:
@@ -149,16 +161,19 @@ def main(args):
             "[--visualize-prices] [--show-process]"
         )
     methods = [Agent.agent_dict[_] for _ in args if _ in Agent.agent_dict]
-    if len(methods) < 1:
-        return print("no method selected !! (" + allowed_agents + ")")
     auction = Auction(args[1])
     if "--visualize-prices" in args:
         return auction.visualize_prices()
+    if len(methods) < 1:
+        return print("no method selected !! (" + allowed_agents + ")")
     show_process = "--show-process" in args
     agents = Agent.do_multi_auction(methods, auction, 10000, show_process)
     if not show_process:
         print("day1:{} items".format(len(auction.get_prices(0))))
         print("day2:{} items".format(len(auction.get_prices(1))))
+        m1, m2 = max_expected(auction.get_prices(1), 10000)
+        print("data max buy:" + str(m1) + "items")
+        print("data max price:" + str(m2))
         for agent, method in agents:
             print(method.__name__)
             print(agent.buyer)
